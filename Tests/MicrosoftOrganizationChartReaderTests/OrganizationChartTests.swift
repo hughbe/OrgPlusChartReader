@@ -1,4 +1,4 @@
-@testable import MicrosoftOrganizationChartReader
+@testable import OrgPlusChartReader
 import XCTest
 
 final class OrganizationChartTests: XCTestCase {

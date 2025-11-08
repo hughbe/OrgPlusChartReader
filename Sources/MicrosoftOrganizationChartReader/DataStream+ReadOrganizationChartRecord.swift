@@ -17,7 +17,7 @@ public extension DataStream {
         } else {
             let size: UInt16 = try read(endianess: .littleEndian)
             guard size <= remainingCount else {
-                throw OrganizationChartReadError.corrupted
+                throw OrgPlusChartReaderror.corrupted
             }
             
             data = DataStream(slicing: self, startIndex: position, count: Int(size))

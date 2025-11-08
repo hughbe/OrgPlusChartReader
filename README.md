@@ -1,4 +1,4 @@
-# MicrosoftOrganizationChartReader
+# OrgPlusChartReader
 
 Swift reader for organization chart files created by the [Microsoft Office Organization Chart add-in](https://support.microsoft.com/en-us/office/install-the-microsoft-office-organization-chart-add-in-39353e37-f8df-4a3e-9925-6be1a75087e5).
 

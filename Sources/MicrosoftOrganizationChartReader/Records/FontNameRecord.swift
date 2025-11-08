@@ -15,7 +15,7 @@ public struct FontNameRecord {
         self.index = try dataStream.read(endianess: .littleEndian)
         
         guard let name = try dataStream.readAsciiString() else {
-            throw OrganizationChartReadError.corrupted
+            throw OrgPlusChartReaderror.corrupted
         }
         
         self.name = name

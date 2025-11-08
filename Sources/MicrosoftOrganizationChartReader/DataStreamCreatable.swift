@@ -15,7 +15,7 @@ extension DataStreamCreatable where Self: RawRepresentable, Self.RawValue: Fixed
     init(dataStream: inout DataStream) throws {
         let rawValue: Self.RawValue = try dataStream.read(endianess: .littleEndian)
         guard let value = Self(rawValue: rawValue) else {
-            throw OrganizationChartReadError.corrupted
+            throw OrgPlusChartReaderror.corrupted
         }
         
         self = value

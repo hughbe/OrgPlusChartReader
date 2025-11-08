@@ -316,7 +316,7 @@ public enum OrganizationChartRecord {
              .shapesSectionEnd,
              .textStyleSectionEnd,
              .connectorsSectionEnd:
-            throw OrganizationChartReadError.corrupted
+            throw OrgPlusChartReaderror.corrupted
         }
     }
 }
@@ -331,10 +331,10 @@ public struct OrganizationChart {
     
     public init(dataStream: inout DataStream) throws {
         guard let signature = try dataStream.readString(count: 4, encoding: .ascii) else {
-            throw OrganizationChartReadError.corrupted
+            throw OrgPlusChartReaderror.corrupted
         }
         guard signature == "UOCF" else {
-            throw OrganizationChartReadError.corrupted
+            throw OrgPlusChartReaderror.corrupted
         }
         
         var records: [OrganizationChartRecord]  = []
@@ -347,7 +347,7 @@ public struct OrganizationChart {
         self.records = records
         
         guard dataStream.remainingCount == 0 else {
-            throw OrganizationChartReadError.corrupted
+            throw OrgPlusChartReaderror.corrupted
         }
     }
 }

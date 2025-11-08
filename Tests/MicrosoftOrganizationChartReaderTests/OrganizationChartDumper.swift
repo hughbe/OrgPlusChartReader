@@ -7,14 +7,14 @@
 
 import DataStream
 import Foundation
-import MicrosoftOrganizationChartReader
+import OrgPlusChartReader
 
 public struct OrganizationChartDumper {
     public static func dumpChart(filePath: String) throws {
         let data = try Data(contentsOf: URL(fileURLWithPath: filePath))
         var dataStream = DataStream(data)
         guard try dataStream.readString(count: 4, encoding: .ascii)! == "UOCF" else {
-            throw OrganizationChartReadError.corrupted
+            throw OrgPlusChartReaderror.corrupted
         }
     
         while dataStream.remainingCount > 0 {

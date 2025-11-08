@@ -1,5 +1,5 @@
 import XCTest
-@testable import MicrosoftOrganizationChartReader
+@testable import OrgPlusChartReader
 
 final class DumpFileTests: XCTestCase {
     func testDumpOpx() throws {
