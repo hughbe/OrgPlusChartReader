@@ -1,7 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Text;
+﻿using System.Text;
 
 namespace OrgPlusChartReader;
 
@@ -26,6 +23,7 @@ public class OrganizationChart
         // The rest of the file consists of records
         // Each record starts with a 2-byte ID and a 2-byte length, followed by the data.
         var records = new List<OrganizationChartRecord>();
+        Stack<OrganizationChartSubstream> substreamStack = new();
         while (stream.Position < stream.Length)
         {
             // Some records are substreams and do not have length/data.
@@ -34,8 +32,19 @@ public class OrganizationChart
             var id = (OrganizationChartRecordId)reader.ReadUInt16();
             if (id >= (OrganizationChartRecordId)0x4000)
             {
-                // This is a substream start record
-                records.Add(new OrganizationChartSubstream(id, reader));
+                if (substreamStack.Count != 0 &&
+                    id == substreamStack.Peek().Id + 0x2000)
+                {
+                    // This is the end of the current substream
+                    substreamStack.Pop();
+                }
+                else
+                {
+                    // This is the start of a new substream
+                    var substream = new OrganizationChartSubstream(id, reader);
+                    substreamStack.Push(substream);
+                    records.Add(substream);
+                }
             }
             else
             {
@@ -70,7 +79,15 @@ public class OrganizationChart
                         ? throw new Exception($"Unknown record ID: 0x{((ushort)id).ToString("X4")}")
                         : new OrganizationChartRecord(id, reader),
                 };
-                records.Add(record);
+
+                if (substreamStack.Count != 0)
+                {
+                    substreamStack.Peek().Records.Add(record);
+                }
+                else
+                {
+                    records.Add(record);
+                }
             }
         }
 

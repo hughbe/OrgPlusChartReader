@@ -1,5 +1,3 @@
-using System;
-using System.IO;
 using System.Text;
 
 namespace OrgPlusChartReader;
@@ -7,8 +5,8 @@ namespace OrgPlusChartReader;
 public class OrganizationChartRecord
 {
     public OrganizationChartRecordId Id { get; }
-    public int RecordSize { get; set; }
-    public byte[] Bytes { get; set; }
+    public int RecordSize { get; }
+    public byte[] Bytes { get; }
 
     internal OrganizationChartRecord(OrganizationChartRecordId id, BinaryReader reader)
     {
@@ -18,7 +16,7 @@ public class OrganizationChartRecord
         {
             // Substream records do not have a length field
             RecordSize = 0;
-            Bytes = Array.Empty<byte>();
+            Bytes = [];
         }
         else
         {

@@ -1,6 +1,4 @@
-﻿using System.IO;
-
-namespace OrgPlusChartReader;
+﻿namespace OrgPlusChartReader;
 
 public class TitlePartIndexRecord : OrganizationChartRecord
 {

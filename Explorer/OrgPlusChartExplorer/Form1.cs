@@ -281,7 +281,7 @@ public partial class Form1 : Form
         }
         else
         {
-            byteViewer.SetBytes(Array.Empty<byte>());
+            byteViewer.SetBytes([]);
             propertyGrid.SelectedObject = new object();
             propertyGrid.Update();
         }

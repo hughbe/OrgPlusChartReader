@@ -1,6 +1,4 @@
-﻿using System;
-
-namespace OrgPlusChartReader;
+﻿namespace OrgPlusChartReader;
 
 public enum LineStyle: UInt16
 {
