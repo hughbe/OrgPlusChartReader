@@ -11,14 +11,15 @@ public class GroupRecord : OrganizationChartRecord
     public ushort Size { get; set; }
 
     /// <summary>
-    /// The zero-based index of this group, in file order.
+    /// The group's number. In every sample this is its zero-based position in the file and also its depth
+    /// in the tree, so which of the two it really is is unknown.
     /// </summary>
     public ushort GroupIndex { get; set; }
 
     /// <summary>
-    /// The depth of the group in the chart's tree. The root group is 0.
+    /// A second copy of <see cref="GroupIndex"/>: the program writes the same field twice.
     /// </summary>
-    public ushort Depth { get; set; }
+    public ushort GroupIndexCopy { get; set; }
 
     /// <summary>
     /// The index of the parent group, or -1 for the root group.
@@ -36,46 +37,37 @@ public class GroupRecord : OrganizationChartRecord
     public ushort Count { get; set; }
 
     /// <summary>
-    /// The group's layout style. 0 means the chart default (<see cref="GlobalInfoRecord.GroupsStyle"/>);
-    /// assistant groups use 2.
+    /// Non-zero (2 in the samples) for a group of assistants; otherwise 0.
     /// </summary>
     [TypeConverter(typeof(HexTypeConverter))]
-    public ushort GroupStyle { get; set; }
+    public ushort AssistantIndicator { get; set; }
 
-    [TypeConverter(typeof(HexTypeConverter))]
-    public ushort Unknown1 { get; set; }
+    /// <summary>
+    /// Group flag 0x20.
+    /// </summary>
+    public bool Flag0x20 { get; set; }
 
-    [TypeConverter(typeof(HexTypeConverter))]
-    public byte Unknown2 { get; set; }
+    /// <summary>
+    /// Group flag 0x40.
+    /// </summary>
+    public bool Flag0x40 { get; set; }
+
+    /// <summary>
+    /// Whether the group uses the co-manager layout.
+    /// </summary>
+    public bool IsCoManager { get; set; }
 
     internal GroupRecord(OrganizationChartRecordId id, byte[] bytes) : base(id, bytes)
     {
-        int offset = 0;
-
-        Size = ReadUInt16(offset);
-        offset += 2;
-
-        GroupIndex = ReadUInt16(offset);
-        offset += 2;
-
-        Depth = ReadUInt16(offset);
-        offset += 2;
-
-        ParentGroupIndex = ReadInt16(offset);
-        offset += 2;
-
-        ParentBoxIndex = ReadUInt16(offset);
-        offset += 2;
-
-        Count = ReadUInt16(offset);
-        offset += 2;
-
-        GroupStyle = ReadUInt16(offset);
-        offset += 2;
-
-        Unknown1 = ReadUInt16(offset);
-        offset += 2;
-
-        Unknown2 = ReadByte(offset);
+        Size = ReadUInt16(0);
+        GroupIndex = ReadUInt16(2);
+        GroupIndexCopy = ReadUInt16(4);
+        ParentGroupIndex = ReadInt16(6);
+        ParentBoxIndex = ReadUInt16(8);
+        Count = ReadUInt16(10);
+        AssistantIndicator = ReadUInt16(12);
+        Flag0x20 = ReadByte(14) != 0;
+        Flag0x40 = ReadByte(15) != 0;
+        IsCoManager = ReadByte(16) != 0;
     }
 }

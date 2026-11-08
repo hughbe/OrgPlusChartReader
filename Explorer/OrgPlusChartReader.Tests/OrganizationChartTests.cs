@@ -210,7 +210,13 @@ public class OrganizationChartTests
 
         Assert.Equal(new short[] { -1, 0, 1 }, groups.Select(x => x.ParentGroupIndex));
         Assert.Equal(new ushort[] { 0, 1, 4 }, groups.Select(x => x.ParentBoxIndex));
-        Assert.Equal(new ushort[] { 0, 1, 2 }, groups.Select(x => x.Depth));
+        Assert.Equal(new ushort[] { 0, 1, 2 }, groups.Select(x => x.GroupIndex));
+        Assert.All(groups, x => Assert.Equal(x.GroupIndex, x.GroupIndexCopy));
+        Assert.Equal(new[] { false, false, true }, groups.Select(x => x.AssistantIndicator != 0));
+
+        var layouts = Flatten(chart.Records).OfType<GroupLayoutRecord>().ToList();
+        Assert.Equal(new ushort[] { 0, 0, 25 }, layouts.Select(x => x.Style));
+        Assert.All(layouts, x => Assert.Equal(x.Style, x.StyleCopy));
         Assert.Equal(new ushort[] { 3, 1, 2 }, groups.Select(x => x.Count));
 
         var boxes = Flatten(chart.Records).OfType<BoxRecord>().ToList();
@@ -273,7 +279,7 @@ public class OrganizationChartTests
     public void Ctor_TextColor_IsDecodedAsRgb(string path, int r, int g, int b)
     {
         var records = Flatten(new OrganizationChart(ReadSample(path)).Records);
-        Assert.Contains(records.OfType<TextStyleRecord>(), x => x.TextColor == Color.FromArgb(r, g, b));
+        Assert.Contains(records.OfType<TextStyleRecord>(), x => x.Property == TextStyleRecord.TextStyleProperty.TextColor && x.Color == Color.FromArgb(r, g, b));
     }
 
     [Theory]
@@ -303,6 +309,79 @@ public class OrganizationChartTests
     {
         var chart = new OrganizationChart(ReadSample("Rectangle/Rectangle.opx"));
         Assert.Equal(2, Flatten(chart.Records).OfType<SelectedRecord>().Single().Value);
+    }
+
+    [Theory]
+    [InlineData("Shadow/ShadowBottom.opx", 1, false, false, false, true)]
+    [InlineData("Shadow/ShadowTop.opx", 1, false, false, true, false)]
+    [InlineData("Shadow/ShadowLeftBottom.opx", 2, true, false, false, true)]
+    [InlineData("Shadow/ShadowRightBottom.opx", 2, false, true, false, true)]
+    [InlineData("Shadow/ShadowLeftBottomRight.opx", 1, true, true, false, true)]
+    [InlineData("OPS/3DGOLD.OPS", 2, true, true, true, true)]
+    public void Ctor_BorderShadowEdges_AreDecoded(string path, int shadowBase, bool left, bool right, bool top, bool bottom)
+    {
+        var chart = new OrganizationChart(ReadSample(path));
+        var border = Flatten(chart.Records).OfType<BorderRecord>().First(x => x.Id == OrganizationChartRecordId.Border);
+        Assert.Equal((shadowBase, left, right, top, bottom), (border.ShadowBase, border.HasLeftShadow, border.HasRightShadow, border.HasTopShadow, border.HasBottomShadow));
+    }
+
+    [Fact]
+    public void Ctor_ShadowNone_HasNoShadowEdges()
+    {
+        var chart = new OrganizationChart(ReadSample("Shadow/ShadowNone.opx"));
+        Assert.All(Flatten(chart.Records).OfType<BorderRecord>(), x => Assert.Equal(0, x.ShadowEdges));
+    }
+
+    [Fact]
+    public void Ctor_TextStyleRun_HasCharacterPosition()
+    {
+        var chart = new OrganizationChart(ReadSample("Plus/Level2.opx"));
+        Assert.Contains(Flatten(chart.Records).OfType<TextStyleRecord>(),
+            x => x.Property == TextStyleRecord.TextStyleProperty.FontIndex && x.Value == 1 && x.CharacterPosition == 8);
+    }
+
+    [Fact]
+    public void Ctor_VersionRecords_HaveVersionAndDate()
+    {
+        var records = Flatten(new OrganizationChart(ReadSample("Lots.opx")).Records).ToList();
+        var a = records.OfType<Unknown0x0003Record>().Single();
+        var b = records.OfType<Unknown0x0002Record>().Single();
+        Assert.Equal((1001, 26, 12, 92), ((int)a.Version, (int)a.Day, (int)a.Month, (int)a.Year));
+        Assert.Equal((1010, 26, 12, 92), ((int)b.Version, (int)b.Day, (int)b.Month, (int)b.Year));
+    }
+
+    [Fact]
+    public void Ctor_CanvasDefaults_UseBorderAndShadowLayouts()
+    {
+        var canvas = Flatten(new OrganizationChart(ReadSample("Lots.opx")).Records)
+            .OfType<OrganizationChartSubstream>().Single(x => x.Id == OrganizationChartRecordId.CanvasSection);
+        Assert.IsType<BorderRecord>(canvas.Records.Single(x => x.Id == OrganizationChartRecordId.Unknown0x0095));
+        Assert.IsType<ShadowRecord>(canvas.Records.Single(x => x.Id == OrganizationChartRecordId.Unknown0x0096));
+        Assert.IsType<ShadowRecord>(canvas.Records.Single(x => x.Id == OrganizationChartRecordId.LineShadow));
+    }
+
+    [Fact]
+    public void Ctor_DefaultFillColor_HasHighByte0xFF()
+    {
+        var chart = new OrganizationChart(ReadSample("TextBox/TextBox.opx"));
+        Assert.Equal(0xFF, Flatten(chart.Records).OfType<ShapeColorRecord>().Single().ColorHighByte);
+
+        var red = new OrganizationChart(ReadSample("TextBox/RedColor.opx"));
+        Assert.Equal(0, Flatten(red.Records).OfType<ShapeColorRecord>().Single().ColorHighByte);
+    }
+
+    [Fact]
+    public void Create_RecordsOnlyKnownFromTheProgram_AreDecoded()
+    {
+        var arrow = Assert.IsType<ArrowRecord>(OrganizationChartRecord.Create(OrganizationChartRecordId.Arrow,
+            new byte[] { 14, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 3, 0 }));
+        Assert.Equal((1, 3), ((int)arrow.End, (int)arrow.ItemIndex));
+
+        var link = Assert.IsType<ShapeBoxLinkRecord>(OrganizationChartRecord.Create(OrganizationChartRecordId.ShapeBoxLink,
+            new byte[] { 22, 0, 1, 0, 5, 0, 1, 0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0, 4, 0, 0, 0 }));
+        Assert.Equal((1, 5, 1u, 4u), ((int)link.GroupIndex, (int)link.BoxIndex, link.Unknown1, link.Unknown4));
+
+        Assert.IsType<OrganizationChartRecord>(OrganizationChartRecord.Create(OrganizationChartRecordId.PictureHeader, new byte[40]));
     }
 
     private static int IndexOf(byte[] data, byte[] pattern)

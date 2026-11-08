@@ -3,8 +3,8 @@
 namespace OrgPlusChartReader;
 
 /// <summary>
-/// The shadow of a box or shape (0x0092). Records 0x0093, 0x0095 and 0x0096 in the canvas section
-/// share this layout, but what they apply to is unknown.
+/// The shadow of a box or shape (0x0092). The line shadow (0x0093) and record 0x0096 in the canvas
+/// section have the same layout.
 /// </summary>
 public class ShadowRecord : OrganizationChartRecord
 {

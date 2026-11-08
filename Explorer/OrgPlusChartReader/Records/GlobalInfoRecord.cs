@@ -42,6 +42,12 @@ public class GlobalInfoRecord : OrganizationChartRecord
     /// </summary>
     public ushort BoxSelected { get; set; }
 
+    [TypeConverter(typeof(HexTypeConverter))]
+    public ushort Unknown12 { get; set; }
+
+    [TypeConverter(typeof(HexTypeConverter))]
+    public ushort Unknown13 { get; set; }
+
     internal GlobalInfoRecord(OrganizationChartRecordId id, byte[] bytes) : base(id, bytes)
     {
         int offset = 0;
@@ -74,6 +80,10 @@ public class GlobalInfoRecord : OrganizationChartRecord
         offset += 2;
 
         BoxSelected = ReadUInt16(offset);
+
+        // Bytes 26-29 are never written by the program and contain leftover data.
+        Unknown12 = ReadUInt16(30);
+        Unknown13 = ReadUInt16(32);
     }
 
     public enum GlobalGroupsStyle: ushort

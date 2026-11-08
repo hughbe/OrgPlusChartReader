@@ -12,8 +12,12 @@ public class ShapeColorRecord : OrganizationChartRecord
 
     public Color Color { get; set; }
 
+    /// <summary>
+    /// The high byte of the program's internal colour value. 0xFF means the default colour,
+    /// in which case the colour's fourth byte is also 1.
+    /// </summary>
     [TypeConverter(typeof(HexTypeConverter))]
-    public ushort DefaultColorMarker { get; set; }
+    public ushort ColorHighByte { get; set; }
 
     internal ShapeColorRecord(OrganizationChartRecordId id, byte[] bytes) : base(id, bytes)
     {
@@ -24,6 +28,6 @@ public class ShapeColorRecord : OrganizationChartRecord
         offset += 2;
         Color = ReadColor(offset);
         offset += 4;
-        DefaultColorMarker = ReadUInt16(offset);
+        ColorHighByte = ReadUInt16(offset);
     }
 }

@@ -2,45 +2,36 @@
 
 namespace OrgPlusChartReader;
 
+/// <summary>
+/// A version record (0x0002). The program writes version 1010 and the date 26 December 1992.
+/// </summary>
 public class Unknown0x0002Record : OrganizationChartRecord
 {
     [TypeConverter(typeof(HexTypeConverter))]
     public ushort Size { get; set; }
 
+    /// <summary>
+    /// 4 in charts and 2 in the style file sample. The 1995 ORGCHART.EXE save routine always writes 4.
+    /// </summary>
     public DocumentKind Kind { get; set; }
 
-    [TypeConverter(typeof(HexTypeConverter))]
-    public ushort Unknown2 { get; set; }
+    public ushort Version { get; set; }
 
-    [TypeConverter(typeof(HexTypeConverter))]
-    public ushort Unknown3 { get; set; }
+    public byte Day { get; set; }
 
-    [TypeConverter(typeof(HexTypeConverter))]
-    public ushort Unknown4 { get; set; }
+    public byte Month { get; set; }
+
+    /// <summary>The year, as two digits (92).</summary>
+    public ushort Year { get; set; }
 
     internal Unknown0x0002Record(OrganizationChartRecordId id, byte[] bytes) : base(id, bytes)
     {
-        int offset = 0;
-
-        // Size (2 bytes).
-        Size = ReadUInt16(offset);
-        offset += 2;
-
-        // Kind (2 bytes).
-        Kind = (DocumentKind)ReadUInt16(offset);
-        offset += 2;
-
-        // Unknown2 (2 bytes).
-        Unknown2 = ReadUInt16(offset);
-        offset += 2;
-
-        // Unknown3 (2 bytes).
-        Unknown3 = ReadUInt16(offset);
-        offset += 2;
-
-        // Unknown4 (2 bytes).
-        Unknown4 = ReadUInt16(offset);
-        offset += 2;
+        Size = ReadUInt16(0);
+        Kind = (DocumentKind)ReadUInt16(2);
+        Version = ReadUInt16(4);
+        Day = ReadByte(6);
+        Month = ReadByte(7);
+        Year = ReadUInt16(8);
     }
 
     public enum DocumentKind : ushort

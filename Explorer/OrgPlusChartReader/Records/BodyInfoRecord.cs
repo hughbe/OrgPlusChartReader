@@ -7,7 +7,6 @@ public class BodyInfoRecord : OrganizationChartRecord
 {
     public ushort Size { get; set; }
 
-    [TypeConverter(typeof(HexTypeConverter))]
     /// <summary>
     /// The number of boxes in the chart.
     /// </summary>
@@ -34,10 +33,11 @@ public class BodyInfoRecord : OrganizationChartRecord
     public Color BackgroundColor { get; set; }
 
     /// <summary>
-    /// 0x00FF when the background is the default colour, otherwise 0.
+    /// The high byte of the program's internal colour value. 0xFF means the default colour,
+    /// in which case the colour's fourth byte is also 1.
     /// </summary>
     [TypeConverter(typeof(HexTypeConverter))]
-    public ushort DefaultColorMarker { get; set; }
+    public ushort ColorHighByte { get; set; }
 
     internal BodyInfoRecord(OrganizationChartRecordId id, byte[] bytes) : base(id, bytes)
     {
@@ -60,6 +60,6 @@ public class BodyInfoRecord : OrganizationChartRecord
         offset += 2;
         BackgroundColor = ReadColor(offset);
 
-        DefaultColorMarker = ReadUInt16(32);
+        ColorHighByte = ReadUInt16(32);
     }
 }

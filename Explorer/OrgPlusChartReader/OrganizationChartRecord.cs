@@ -56,10 +56,13 @@ public class OrganizationChartRecord
             OrganizationChartRecordId.ShapeColor => new ShapeColorRecord(id, bytes),
             OrganizationChartRecordId.Selected => new SelectedRecord(id, bytes),
             OrganizationChartRecordId.Shadow => new ShadowRecord(id, bytes),
-            // These share the shadow record's layout; what they apply to is unknown.
-            OrganizationChartRecordId.Unknown0x0093 => new ShadowRecord(id, bytes),
-            OrganizationChartRecordId.Unknown0x0095 => new ShadowRecord(id, bytes),
+            OrganizationChartRecordId.LineShadow => new ShadowRecord(id, bytes),
+            // The border and shadow of a second default object in the canvas section.
+            OrganizationChartRecordId.Unknown0x0095 => new BorderRecord(id, bytes),
             OrganizationChartRecordId.Unknown0x0096 => new ShadowRecord(id, bytes),
+            OrganizationChartRecordId.GroupLayout => new GroupLayoutRecord(id, bytes),
+            OrganizationChartRecordId.Arrow => new ArrowRecord(id, bytes),
+            OrganizationChartRecordId.ShapeBoxLink => new ShapeBoxLinkRecord(id, bytes),
             OrganizationChartRecordId.FontIndex => new FontIndexRecord(id, bytes),
             OrganizationChartRecordId.Text => new TextRecord(id, bytes),
             OrganizationChartRecordId.GlobalInfo => new GlobalInfoRecord(id, bytes),
