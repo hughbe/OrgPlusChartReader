@@ -16,7 +16,7 @@ public class Unknown0x0003Record : OrganizationChartRecord
     [TypeConverter(typeof(HexTypeConverter))]
     public ushort Unknown3 { get; set; }
 
-    public Unknown0x0003Record(OrganizationChartRecordId id, BinaryReader reader) : base(id, reader)
+    internal Unknown0x0003Record(OrganizationChartRecordId id, byte[] bytes) : base(id, bytes)
     {
         int offset = 0;
 

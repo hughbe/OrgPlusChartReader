@@ -29,7 +29,7 @@ public class LevelRecord : OrganizationChartRecord
     [TypeConverter(typeof(HexTypeConverter))]
     public byte Unknown7 { get; set; }
 
-    public LevelRecord(OrganizationChartRecordId id, BinaryReader reader) : base(id, reader)
+    internal LevelRecord(OrganizationChartRecordId id, byte[] bytes) : base(id, bytes)
     {
         int offset = 0;
         Size = ReadUInt16(offset);

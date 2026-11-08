@@ -8,9 +8,9 @@ public class FontNameRecord : OrganizationChartRecord
     public ushort Index { get; set; }
     public string Value { get; set; }
 
-    public FontNameRecord(OrganizationChartRecordId id, BinaryReader reader) : base(id, reader)
+    internal FontNameRecord(OrganizationChartRecordId id, byte[] bytes) : base(id, bytes)
     {
         Index = ReadUInt16(0);
-        Value = ReadASCIIString(2, RecordSize - 2);
+        Value = ReadString(2, RecordSize - 2);
     }
 }

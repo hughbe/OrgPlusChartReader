@@ -5,11 +5,11 @@ namespace OrgPlusChartReader;
 public class CopyrightRecord2 : OrganizationChartRecord
 {
     [TypeConverter(typeof(HexTypeConverter))]
-    public int Size { get; set; }
+    public ushort Size { get; set; }
 
     public string Value { get; set; }
 
-    public CopyrightRecord2(OrganizationChartRecordId id, BinaryReader reader) : base(id, reader)
+    internal CopyrightRecord2(OrganizationChartRecordId id, byte[] bytes) : base(id, bytes)
     {
         int offset = 0;
 
@@ -18,7 +18,7 @@ public class CopyrightRecord2 : OrganizationChartRecord
         offset += 2;
 
         // Value (variable): ASCII encoded copyright text.
-        Value = ReadASCIIString(offset, Size - 2);
+        Value = ReadString(offset, Size - 2);
         offset += Size - 2;
     }
 }

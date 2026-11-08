@@ -12,7 +12,7 @@ public class FooterRecord : OrganizationChartRecord
     [TypeConverter(typeof(HexTypeConverter))]
     public uint FileSize { get; set; }
 
-    public FooterRecord(OrganizationChartRecordId id, BinaryReader reader) : base(id, reader)
+    internal FooterRecord(OrganizationChartRecordId id, byte[] bytes) : base(id, bytes)
     {
         int offset = 0;
         Size = ReadUInt16(offset);

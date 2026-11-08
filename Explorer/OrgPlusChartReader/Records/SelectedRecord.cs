@@ -7,7 +7,7 @@ public class SelectedRecord : OrganizationChartRecord
     [TypeConverter(typeof(HexTypeConverter))]
     public ushort Unknown { get; set; }
 
-    public SelectedRecord(OrganizationChartRecordId id, BinaryReader reader) : base(id, reader)
+    internal SelectedRecord(OrganizationChartRecordId id, byte[] bytes) : base(id, bytes)
     {
         Unknown = ReadUInt16(0);
     }

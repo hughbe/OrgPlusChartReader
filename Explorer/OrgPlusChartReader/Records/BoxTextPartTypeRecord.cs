@@ -4,7 +4,7 @@ public class BoxTextPartTypeRecord : OrganizationChartRecord
 {
     public BoxTextPartType Type { get; set; }
     
-    public BoxTextPartTypeRecord(OrganizationChartRecordId id, BinaryReader reader) : base(id, reader)
+    internal BoxTextPartTypeRecord(OrganizationChartRecordId id, byte[] bytes) : base(id, bytes)
     {
         Type = (BoxTextPartType)ReadUInt16(0);
     }

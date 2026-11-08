@@ -16,7 +16,7 @@ public class ShadowRecord : OrganizationChartRecord
 
     public Color Color { get; set; }
 
-    public ShadowRecord(OrganizationChartRecordId id, BinaryReader reader) : base(id, reader)
+    internal ShadowRecord(OrganizationChartRecordId id, byte[] bytes) : base(id, bytes)
     {
         int offset = 0;
         Size = ReadUInt16(offset);

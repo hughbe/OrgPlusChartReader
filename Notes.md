@@ -26,6 +26,16 @@ The file contains the parent section (0x4001).
 
 The file contains the footer record 0x0FFF which contains the file size and CRC.
 
+### Footer
+
+The footer is the last 14 bytes of the file: id `0x0FFF`, length `10`, then a 2-byte size (also `10`), a 4-byte CRC and a 4-byte file size. The file size is the offset of the footer, i.e. the length of the file minus 14; every sample satisfies this, and the C# reader rejects files where it does not hold.
+
+The low 16 bits of the CRC equal the sum of all bytes before the footer modulo 65536 in every sample except `Custom.opx`. The algorithm for the high 16 bits is not known, so the CRC is not validated.
+
+### Stale bytes
+
+The parent section is normally followed immediately by the footer. A few samples (`Simple.opx`, `Box/Name1.opx`) have extra bytes between the parent section's end marker (0x6001) and the final footer. These look like leftovers from an earlier, longer save of the same file; they include a stale footer, and in `Simple.opx` part of an older document. The C# reader exposes them as `OrganizationChart.SlackBytes`.
+
 ### Parent Section
 
 The parent section (0x4001) contains the container section (0x4002).

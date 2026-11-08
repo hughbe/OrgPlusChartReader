@@ -22,7 +22,7 @@ public class BorderRecord : OrganizationChartRecord
     [TypeConverter(typeof(HexTypeConverter))]
     public ushort Unknown3 { get; set; }
 
-    public BorderRecord(OrganizationChartRecordId id, BinaryReader reader) : base(id, reader)
+    internal BorderRecord(OrganizationChartRecordId id, byte[] bytes) : base(id, bytes)
     {
         int offset = 0;
         Size = ReadUInt16(offset);

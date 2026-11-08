@@ -15,7 +15,7 @@ public class ShapeColorRecord : OrganizationChartRecord
     [TypeConverter(typeof(HexTypeConverter))]
     public ushort Unknown2 { get; set; }
 
-    public ShapeColorRecord(OrganizationChartRecordId id, BinaryReader reader) : base(id, reader)
+    internal ShapeColorRecord(OrganizationChartRecordId id, byte[] bytes) : base(id, bytes)
     {
         int offset = 0;
         Size = ReadUInt16(offset);
