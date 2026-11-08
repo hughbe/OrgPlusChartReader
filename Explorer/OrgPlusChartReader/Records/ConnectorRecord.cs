@@ -29,14 +29,14 @@ public class ConnectorRecord : OrganizationChartRecord
     [TypeConverter(typeof(HexTypeConverter))]
     public ushort ToAnchor { get; set; }
 
-    [TypeConverter(typeof(HexTypeConverter))]
-    public uint Unknown1 { get; set; }
+    /// <summary>Three distances in view units, probably the lengths of the connector's elbow segments.</summary>
+    public uint Distance1 { get; set; }
 
-    [TypeConverter(typeof(HexTypeConverter))]
-    public uint Unknown2 { get; set; }
+    /// <summary>See <see cref="Distance1"/>.</summary>
+    public uint Distance2 { get; set; }
 
-    [TypeConverter(typeof(HexTypeConverter))]
-    public uint Unknown3 { get; set; }
+    /// <summary>See <see cref="Distance1"/>.</summary>
+    public uint Distance3 { get; set; }
 
     internal ConnectorRecord(OrganizationChartRecordId id, byte[] bytes) : base(id, bytes)
     {
@@ -63,12 +63,12 @@ public class ConnectorRecord : OrganizationChartRecord
         ToAnchor = ReadUInt16(offset);
         offset += 2;
 
-        Unknown1 = ReadUInt32(offset);
+        Distance1 = ReadUInt32(offset);
         offset += 4;
 
-        Unknown2 = ReadUInt32(offset);
+        Distance2 = ReadUInt32(offset);
         offset += 4;
 
-        Unknown3 = ReadUInt32(offset);
+        Distance3 = ReadUInt32(offset);
     }
 }

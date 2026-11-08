@@ -267,7 +267,7 @@ Each shape starts with `0x0083` Shape. What follows depends on the shape type (�
 | 2 Text box | `0x0053` Border, `0x0092` Shadow, `0x0084` Fill, `0x0060` Text, `0x4010` TextStyle section |
 | 3, 4, 5 Lines | `[0x0056 Line]`, `[0x0093 LineShadow]` (each only when it differs from the default), then an `0x0094` Arrow for each arrowhead |
 | 6, 8 Pictures (program only) | `0x0053` Border, `0x0092` Shadow, then picture records |
-| 7 (program only) | `0x0097` ShapeBoxLink |
+| 7 | never: these are connectors, written in `0x4012` |
 
 ✅ If the shape is selected, a `0x0088` record follows it.
 
@@ -415,7 +415,7 @@ Readers should start from the canvas defaults and apply per-object records over 
 
 Each field is a `0x0011` FieldIndex (`u16`, zero-based), a `0x0012` FieldKind (`u16`, ❓ 1 or 2) and a `0x0060` Text holding the field's label ("Name", "Title", "Comment 1", "Comment 2"). Optional picture records and field extras may follow.
 
-❓ FieldKind is not understood. Several `.opx` files have kind 2 for "Name" and others kind 1.
+✅ FieldKind comes from the field object: 4 and 3 for two special internal field types; otherwise 1 when the field's text flag `0x4000` is set and 2 when it isn't. That same flag controls whether text-style property 8 is written. 🟡 What the special types and the flag mean is unknown.
 
 ✅ **Field extras** (program only) are written for both field definitions and box text, each depending on a field flag. In order:
 
@@ -433,8 +433,8 @@ Each field is a `0x0011` FieldIndex (`u16`, zero-based), a `0x0012` FieldKind (`
 | Offset | Type | Field | Samples |
 |---|---|---|---|
 | 0 | u16 | ❓ record version? | 4 (1995 program, `.ops`, `TEMPLATE.MSO`); 8 (`.opx` samples) |
-| 2 | u16 | boolean: document flag `0x02000000` is **clear** | |
-| 4 | u16 | boolean: document flag `0x04000000` is **clear** | |
+| 2 | u16 | boolean: document flag `0x02000000` is **clear** | 🟡 A drawing-mode flag. When it is set, or the magnification is below 500, the drawing and selection code switches on a program-wide drawing mode. Picture export forces the flag on. |
+| 4 | u16 | ✅ show page breaks: document flag `0x04000000` is **clear** | When the flag is set, the paint routine skips the page-break and guide lines. Picture export sets it so they don't appear in the exported image. |
 | 6 | u16 | boolean: document flag `0x00100000` | |
 | 8 | u16 | boolean: document flag at `+0x2A` bit 0 | 1 |
 | 10 | u16 | boolean: document flag at `+0x2A` bit 1 | 1 |
@@ -457,7 +457,7 @@ Each field is a `0x0011` FieldIndex (`u16`, zero-based), a `0x0012` FieldKind (`
 
 GLOBALINFO must come before the first view, otherwise "The GLOBALINFO section of this file does not occur before the first view."
 
-✅ **`0x0FFC`** is accepted in the global info section, and in the box reader, but never written. In the global info section the program only notes that it was present and ignores its contents. ❓ It may be an older form of GLOBALINFO.
+✅ **`0x0FFC`** is accepted in the global info section, and in the box reader, but never written. In the global info section the program only notes that it was present and ignores its contents. ✅ It marks an **older file format**: when it is present, the connector reader treats zero elbow distances as missing and substitutes 10.
 
 ### 4.4 Canvas records
 
@@ -467,17 +467,16 @@ GLOBALINFO must come before the first view, otherwise "The GLOBALINFO section of
 |---|---|---|---|
 | 0 | u16 | cb = 34 | |
 | 2 | u16 | ✅ box count | 1, 2, 5, 6 match the number of `0x0050` records |
-| 4 | u16 | ❓ | 36 |
-| 6 | u16 | ❓ | 0 (`.ops` and `TEMPLATE.MSO`: leftover data) |
-| 8 | u16 | ❓ | `0x2C2E` |
-| 10 | u16 | ❓ | 1 |
-| 12 | u16 | ❓ | 2 |
-| 14 | u16 | ✅ character set | 1 = ANSI (all samples), 0 = OEM code page. Other values: "MS Organization Chart does not support the character set used by this file." |
+| 4 | u16 | ✅ constant | 36 |
+| 6 | u16 | ✅ never written: leftover stack data | 0; junk in `.ops` and `TEMPLATE.MSO` |
+| 8 | u16 | ✅ constant | `0x2C2E` |
+| 10 | u16 | ✅ constant | 1 |
+| 12 | u16 | ✅ constant | 2 |
+| 14 | u16 | ✅ character set | 1 = ANSI (all samples), 0 = OEM code page. Other values: "MS Organization Chart does not support the character set used by this file." The 1995 program always writes 1. |
 | 16 | RBG4 | ✅ background colour | |
-| 20 | u16 | ❓ | 22 |
-| 22 | u16 | ❓ | 0 |
-| 24 | u32 | ❓ | 0 (`.ops`: 144) |
-| 28 | u32 | ❓ | 0 (`.ops`: 144) |
+| 20 | u32 | ❓ a document value | 22 |
+| 24 | u32 | ✅ guide inset 1 | A draggable guide's position, in view units measured in from the page margins. The paint routine draws guide lines at margin + inset on each side. 0 (`.ops`: 144 = 1 inch). |
+| 28 | u32 | ✅ guide inset 2 | A second guide, set by dragging. 0 (`.ops`: 144). |
 | 32 | u16 | 🟡 colour `HH` | `0x00FF` with the default white, otherwise 0 |
 
 #### `0x0021` ViewUnits
@@ -500,7 +499,7 @@ Units per inch = offset 4 × offset 6 / 100. The program always writes `{8, 0, 1
 | `0x0098` | `{4, v}`: v = 1 unless document flag `0x08000000` is set | ✅ |
 | `0x0024` | `u16` from a document field | ✅ 0 in every sample |
 | `0x0052` | `u16` from a program-wide setting | ✅ 0 in every sample |
-| `0x009B` | `0a 00 00 00 00 00 01 00 01 00` | ❓ constant in every sample |
+| `0x009B` | ✅ `{cb = 10, flag, a, b, c}`: offset 2 is document flag `+0x2A` bit 2 (the bit next to GLOBALINFO offsets 8 and 10), and offsets 4, 6 and 8 are three document values. `0a 00 00 00 00 00 01 00 01 00` in every sample. | |
 | `0x0090` | program only; data from a stored object | ❓ |
 | `0x0091` | program only; 6 bytes from two program-wide values, only when a third is set | ❓ |
 
@@ -512,15 +511,16 @@ Units per inch = offset 4 × offset 6 / 100. The program always writes `{8, 0, 1
 |---|---|---|---|
 | 0 | u16 | cb of the fixed part = 44 | ✅ |
 | 2 | u16 | layout direction | ✅ must be 0, top to bottom. Other values: "MS Organization Chart can only import charts that are formatted from top to bottom." |
-| 4 | u16 | a two-way setting | ✅ 0 or non-zero; ❓ meaning |
-| 6 | u16[2] | ❓ | 0 |
-| 10 | i16 | ❓ a setting | 1 |
-| 12 | u32[4] | 🟡 page margins (measurements) | 0, 72, or 37/37/27/27 (`TEMPLATE.MSO`) |
-| 28 | u32 | measurement | 0, 7, 14 |
-| 32 | u16 | ❓ a setting | 1 |
-| 34 | i16 | ❓ a setting | 1 |
-| 36 | u32 | measurement | 611–639 |
-| 40 | u32 | measurement | 41–139 |
+| 4 | u16 | orientation | ✅ 0 portrait, 1 landscape (from the printer's `dmOrientation`) |
+| 6 | u16 | ❓ | 0 |
+| 8 | u16 | document flag `0x00040000` | ✅ 0 in the samples |
+| 10 | u16 | document flag `0x00020000` | ✅ 1 in the samples |
+| 12 | u32[4] | ✅ page margins | 🟡 left, right, top, bottom. 0, 72, or 37/37/27/27 (`TEMPLATE.MSO`). The page-break and guide drawing measures from these. |
+| 28 | u32 | ❓ a measurement | 0, 7, 14 |
+| 32 | u16 | ✅ paper size | the printer's `dmPaperSize` (1 = Letter) |
+| 34 | u16 | ✅ use the default printer | 1: the chart prints to the default Windows printer, and the reader drops a saved printer name that differs from it. 0: the chart keeps its own printer. 1 in the samples. |
+| 36 | u32 | 🟡 chart width | 611–639. It grows by 2 when a box gets a side shadow. |
+| 40 | u32 | 🟡 chart height | 41 for one box, 139 for the two-box style file |
 | 44 | string | ✅ printer as `device,driver,port` | e.g. `HP LaserJet 4/4M Plus PS 600,adobeps,LPT2:`. Empty (a single NUL) in most samples. When reading, the program compares it with the current Windows printer. |
 
 #### `0x0089` DevMode
@@ -543,12 +543,12 @@ The `0x400A` section holds every template in use. The canvas-level `0x0023` is t
 
 #### `0x400B` Font table
 
-Each font is an optional `0x009C` FontInfo followed by a `0x0025` FontName. Text styles refer to fonts by index (§5.5, property `0x02`).
+Each font is an optional `0x009C` FontInfo followed by a `0x0025` FontName. ✅ The program only writes `0x009C` when a program-wide version word is at least 4, probably Windows 95 or later, which is why the `.ops` sample has none. Text styles refer to fonts by index (§5.5, property `0x02`).
 
 | Record | Offset | Type | Field |
 |---|---|---|---|
 | `0x009C` | 0 | u16 | ✅ font index |
-| | 2 | u16 | ❓ 0 normally; `0xA1` for Century Gothic. Possibly charset or pitch-and-family. |
+| | 2 | u16 | ✅ the font's Windows character set (`LOGFONT.lfCharSet`): 0 ANSI; `0xA1` (Greek) for Century Gothic in one sample |
 | `0x0025` | 0 | u16 | ✅ font index |
 | | 2 | string | ✅ face name, e.g. "Arial", "Arial Narrow", "Arial Black", "Times New Roman" |
 
@@ -704,7 +704,7 @@ The canvas section's `0x4010` lists all the defaults. Sections on boxes, title p
 
 #### `0x0055` Connector
 
-✅ A user-drawn connector between two boxes (an "aux line" in the program's menus), followed by its `0x0056` Line.
+✅ A user-drawn connector between two boxes (an "aux line" in the program's menus), followed by its `0x0056` Line. In memory, connectors are drawing objects of internal type 7; the program writes them here instead of in `0x400E`.
 
 | Offset | Type | Field | |
 |---|---|---|---|
@@ -715,7 +715,7 @@ The canvas section's `0x4010` lists all the defaults. Sections on boxes, title p
 | 8 | u16 | to: box index | ✅ |
 | 10 | u16 | to: group id | ✅ `0x0041` offset 2 |
 | 12 | u16 | to: anchor side | 🟡 3 or 4 |
-| 14 | u32[3] | ❓ | 18, 18, 18. Possibly the lengths of the elbow segments. |
+| 14 | u32[3] | ✅ three distances in view units | 18, 18, 18 (1/8 inch). 🟡 The lengths of the connector's elbow segments. When reading a file with `0x0FFC`, the program replaces 0 values with 10. |
 
 ### 4.8 Drawing shapes
 
@@ -744,7 +744,7 @@ The fields are edges, not a position and size. For example, a horizontal line ha
 
 #### `0x0097` ShapeBoxLink (program only)
 
-✅ Links a drawing shape to a box.
+🟡 Links an object to a box. The drawing-shape writer has a branch that writes it for internal type 7, but type 7 objects are connectors, which that writer otherwise skips. So when it is actually written is unclear.
 
 | Offset | Type | Field |
 |---|---|---|
@@ -909,7 +909,7 @@ It is 0 when there is no shadow. The Boxes > Shadow menu offers 8 presets (comma
 | 4 | Vertical line | ✅ |
 | 5 | Free (diagonal) line | ✅ |
 | 6 | 🟡 Picture (image) | program only |
-| 7 | 🟡 Shape linked to a box (`0x0097`) | program only |
+| 7 | Aux line (connector). Stored with the drawing objects but written to `0x4012` as `0x0055`, not here. | ✅ |
 | 8 | 🟡 Picture | program only |
 
 ### 5.8 Box type (`0x0051` offset 2)
@@ -953,12 +953,12 @@ It is 0 when there is no shadow. The Boxes > Shadow menu offers 8 presets (comma
 
 ## 7. Open questions
 
-- What the document, group and box fields behind some values are, for example `0x0FFD` offsets 2–10, most of `0x0020` and `0x0022`, and `0x0042` offsets 2–10. Answering this means tracing the program's UI code that sets those fields.
+- What the document, group and box fields behind some values are, for example `0x0FFD` offsets 6–10, `0x0020` offset 20, `0x0022` offset 28, `0x009B`, and `0x0042` offsets 2–10. Answering this means tracing the program's UI code that sets those fields.
 - The layout of the picture records, the field extras and `0x0FFC`.
 - How a password is stored in `0x0001` by versions that support passwords.
 - What the second default object (`0x0095`, `0x0096`) applies to. 🟡 The chart window's paint routine reads it while drawing the background, so it is probably a frame drawn around the chart or its title.
-- The connector's anchor sides and its trailing `u32` values.
-- The FieldKind (`0x0012`) values.
+- The connector's anchor sides (copied from two fields of the connector object).
+- What FieldKind's special field types and the text flag `0x4000` mean.
 - What the `0x0002` kind flag changes when a file is loaded.
 
 ## 8. Methodology

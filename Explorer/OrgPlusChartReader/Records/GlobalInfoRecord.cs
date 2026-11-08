@@ -11,7 +11,10 @@ public class GlobalInfoRecord : OrganizationChartRecord
     public ushort Unknown2 { get; set; }
 
     [TypeConverter(typeof(HexTypeConverter))]
-    public ushort Unknown3 { get; set; }
+    /// <summary>
+    /// 1 when page-break and guide lines are drawn on screen (the program stores the inverse of a hide flag).
+    /// </summary>
+    public ushort ShowPageBreaks { get; set; }
 
     [TypeConverter(typeof(HexTypeConverter))]
     public ushort Unknown4 { get; set; }
@@ -28,7 +31,7 @@ public class GlobalInfoRecord : OrganizationChartRecord
     public GlobalGroupsStyle GroupsStyle { get; set; }
 
     [TypeConverter(typeof(HexTypeConverter))]
-    public ushort Unknown8 { get; set; }
+    public ushort GroupStyleParameter { get; set; }
 
     /// <summary>
     /// The default style for assistant groups, using the same codes as <see cref="GroupsStyle"/> (25 in the samples).
@@ -57,7 +60,7 @@ public class GlobalInfoRecord : OrganizationChartRecord
         offset += 2;
         Unknown2 = ReadUInt16(offset);
         offset += 2;
-        Unknown3 = ReadUInt16(offset);
+        ShowPageBreaks = ReadUInt16(offset);
         offset += 2;
         Unknown4 = ReadUInt16(offset);
         offset += 2;
@@ -69,7 +72,7 @@ public class GlobalInfoRecord : OrganizationChartRecord
         offset += 2;
         GroupsStyle = (GlobalGroupsStyle)ReadUInt16(offset);
         offset += 2;
-        Unknown8 = ReadUInt16(offset);
+        GroupStyleParameter = ReadUInt16(offset);
         offset += 2;
 
         DefaultAssistantStyle = ReadUInt16(offset);

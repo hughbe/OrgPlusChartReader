@@ -421,6 +421,21 @@ public class OrganizationChartTests
             Flatten(chart.Records).Count());
     }
 
+    [Fact]
+    public void Ctor_PageSetup_IsDecoded()
+    {
+        var setup = Flatten(new OrganizationChart(ReadSample("OPS/3DGOLD.OPS")).Records).OfType<PageSetupRecord>().Single();
+        Assert.Equal(PageSetupRecord.PageOrientation.Portrait, setup.Orientation);
+        Assert.Equal(0, setup.LayoutDirection);
+        Assert.Equal(1, setup.PaperSize);
+        Assert.Equal("HP LaserJet 4/4M Plus PS 600,adobeps,LPT2:", setup.Printer);
+        Assert.Equal(72u, setup.Margin1);
+
+        var chart = Flatten(new OrganizationChart(ReadSample("Lots.opx")).Records).OfType<PageSetupRecord>().Single();
+        Assert.True(chart.UseDefaultPrinter);
+        Assert.Equal("", chart.Printer);
+    }
+
     private static int IndexOf(byte[] data, byte[] pattern)
     {
         for (int i = 0; i <= data.Length - pattern.Length; i++)

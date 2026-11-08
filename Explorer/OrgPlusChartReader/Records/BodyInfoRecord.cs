@@ -34,6 +34,17 @@ public class BodyInfoRecord : OrganizationChartRecord
 
     public Color BackgroundColor { get; set; }
 
+    [TypeConverter(typeof(HexTypeConverter))]
+    public uint Unknown8 { get; set; }
+
+    /// <summary>
+    /// The position of a draggable guide, in view units measured in from the page margins. Guide lines are drawn at this inset.
+    /// </summary>
+    public uint GuideInset1 { get; set; }
+
+    /// <summary>The position of a second draggable guide. See <see cref="GuideInset1"/>.</summary>
+    public uint GuideInset2 { get; set; }
+
     /// <summary>
     /// The high byte of the program's internal colour value. 0xFF means the default colour,
     /// in which case the colour's fourth byte is also 1.
@@ -62,6 +73,9 @@ public class BodyInfoRecord : OrganizationChartRecord
         offset += 2;
         BackgroundColor = ReadColor(offset);
 
+        Unknown8 = ReadUInt32(20);
+        GuideInset1 = ReadUInt32(24);
+        GuideInset2 = ReadUInt32(28);
         ColorHighByte = ReadUInt16(32);
     }
 

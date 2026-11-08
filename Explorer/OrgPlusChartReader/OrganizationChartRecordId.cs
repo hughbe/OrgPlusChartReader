@@ -11,7 +11,7 @@ public enum OrganizationChartRecordId : ushort
     Unknown0x0013 = 0x0013,
     BodyInfo = 0x0020,
     ViewUnits = 0x0021,
-    Unknown0x0022 = 0x0022,
+    PageSetup = 0x0022,
     BoxTemplate = 0x0023,
     Unknown0x0024 = 0x0024,
     FontName = 0x0025,
