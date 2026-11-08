@@ -44,7 +44,10 @@ public class OrganizationChartRecord
             OrganizationChartRecordId.BodyInfo => new BodyInfoRecord(id, bytes),
             OrganizationChartRecordId.FontName => new FontNameRecord(id, bytes),
             OrganizationChartRecordId.TitlePartIndex => new TitlePartIndexRecord(id, bytes),
-            OrganizationChartRecordId.Level => new LevelRecord(id, bytes),
+            OrganizationChartRecordId.Group => new GroupRecord(id, bytes),
+            OrganizationChartRecordId.Box => new BoxRecord(id, bytes),
+            OrganizationChartRecordId.BoxTemplate => new BoxTemplateRecord(id, bytes),
+            OrganizationChartRecordId.TextStyle => new TextStyleRecord(id, bytes),
             OrganizationChartRecordId.BoxIndex => new BoxIndexRecord(id, bytes),
             OrganizationChartRecordId.Border => new BorderRecord(id, bytes),
             OrganizationChartRecordId.Connector => new ConnectorRecord(id, bytes),
@@ -53,13 +56,17 @@ public class OrganizationChartRecord
             OrganizationChartRecordId.ShapeColor => new ShapeColorRecord(id, bytes),
             OrganizationChartRecordId.Selected => new SelectedRecord(id, bytes),
             OrganizationChartRecordId.Shadow => new ShadowRecord(id, bytes),
+            // These share the shadow record's layout; what they apply to is unknown.
+            OrganizationChartRecordId.Unknown0x0093 => new ShadowRecord(id, bytes),
+            OrganizationChartRecordId.Unknown0x0095 => new ShadowRecord(id, bytes),
+            OrganizationChartRecordId.Unknown0x0096 => new ShadowRecord(id, bytes),
             OrganizationChartRecordId.FontIndex => new FontIndexRecord(id, bytes),
             OrganizationChartRecordId.Text => new TextRecord(id, bytes),
             OrganizationChartRecordId.GlobalInfo => new GlobalInfoRecord(id, bytes),
             OrganizationChartRecordId.Footer => new FooterRecord(id, bytes),
             _ when (ushort)id >= 0x4000 =>
                 throw new InvalidDataException($"0x{(ushort)id:X4} is a section marker, not a record."),
-            // Known IDs that are not yet specialized (including TextStyle) use the base record.
+            // Known IDs that are not yet specialized use the base record.
             _ when Enum.IsDefined(typeof(OrganizationChartRecordId), id) => new OrganizationChartRecord(id, bytes),
             _ => throw new InvalidDataException($"Unknown record ID: 0x{(ushort)id:X4}"),
         };
@@ -99,7 +106,8 @@ public class OrganizationChartRecord
     }
 
     /// <summary>
-    /// Reads a 4-byte colour. The bytes are stored in the order red, blue, green, (unused).
+    /// Reads a 4-byte colour. The bytes are stored in the order red, blue, green, flag.
+    /// The flag byte is 1 for the application's default colour and 0 for a colour the user picked.
     /// </summary>
     protected System.Drawing.Color ReadColor(int offset)
     {
@@ -109,6 +117,15 @@ public class OrganizationChartRecord
         byte green = Bytes[offset + 2];
         // byte _ = Bytes[offset + 3]; // ignored
         return System.Drawing.Color.FromArgb(red, green, blue);
+    }
+
+    /// <summary>
+    /// Reads a 3-byte colour in the order red, green, blue. Only text colours use this order.
+    /// </summary>
+    protected System.Drawing.Color ReadRgbColor(int offset)
+    {
+        EnsureAvailable(offset, 3);
+        return System.Drawing.Color.FromArgb(Bytes[offset], Bytes[offset + 1], Bytes[offset + 2]);
     }
 
     /// <summary>

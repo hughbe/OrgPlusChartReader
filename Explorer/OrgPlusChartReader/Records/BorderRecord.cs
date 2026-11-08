@@ -13,7 +13,11 @@ public class BorderRecord : OrganizationChartRecord
     public ushort Unknown1 { get; set; }
 
     [TypeConverter(typeof(HexTypeConverter))]
-    public ushort Unknown2 { get; set; }
+    /// <summary>
+    /// A code that identifies the shadow chosen for the box (for example 0x66 for right and bottom).
+    /// It only changes when the shadow changes.
+    /// </summary>
+    public ushort ShadowPreset { get; set; }
 
     public LineStyle LineStyle { get; set; }
 
@@ -31,7 +35,7 @@ public class BorderRecord : OrganizationChartRecord
         offset += 2;
         Unknown1 = ReadUInt16(offset);
         offset += 2;
-        Unknown2 = ReadUInt16(offset);
+        ShadowPreset = ReadUInt16(offset);
         offset += 2;
         LineStyle = (LineStyle)ReadUInt16(offset);
         offset += 2;

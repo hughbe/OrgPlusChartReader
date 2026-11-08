@@ -1,4 +1,4 @@
-using System.ComponentModel;
+﻿using System.ComponentModel;
 
 namespace OrgPlusChartReader;
 
@@ -7,8 +7,7 @@ public class Unknown0x0002Record : OrganizationChartRecord
     [TypeConverter(typeof(HexTypeConverter))]
     public ushort Size { get; set; }
 
-    [TypeConverter(typeof(HexTypeConverter))]
-    public ushort Unknown1 { get; set; }
+    public DocumentKind Kind { get; set; }
 
     [TypeConverter(typeof(HexTypeConverter))]
     public ushort Unknown2 { get; set; }
@@ -27,8 +26,8 @@ public class Unknown0x0002Record : OrganizationChartRecord
         Size = ReadUInt16(offset);
         offset += 2;
 
-        // Unknown1 (2 bytes).
-        Unknown1 = ReadUInt16(offset);
+        // Kind (2 bytes).
+        Kind = (DocumentKind)ReadUInt16(offset);
         offset += 2;
 
         // Unknown2 (2 bytes).
@@ -42,5 +41,11 @@ public class Unknown0x0002Record : OrganizationChartRecord
         // Unknown4 (2 bytes).
         Unknown4 = ReadUInt16(offset);
         offset += 2;
+    }
+
+    public enum DocumentKind : ushort
+    {
+        Style = 0x02,
+        Chart = 0x04,
     }
 }

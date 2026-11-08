@@ -2,69 +2,73 @@
 
 namespace OrgPlusChartReader;
 
+/// <summary>
+/// A user-drawn connector between two boxes (0x0055). It is followed by its <see cref="LineRecord"/>.
+/// </summary>
 public class ConnectorRecord : OrganizationChartRecord
 {
     public ushort Size { get; set; }
 
-    public ushort OriginIndex { get; set; }
+    /// <summary>The one-based index of the box the connector starts at.</summary>
+    public ushort FromBoxIndex { get; set; }
 
-    public ushort OriginLevel { get; set; }
+    /// <summary>The index of the group that contains the start box.</summary>
+    public ushort FromGroupIndex { get; set; }
+
+    /// <summary>Probably the side of the start box the connector is attached to (3 or 4 in the samples).</summary>
+    [TypeConverter(typeof(HexTypeConverter))]
+    public ushort FromAnchor { get; set; }
+
+    /// <summary>The one-based index of the box the connector ends at.</summary>
+    public ushort ToBoxIndex { get; set; }
+
+    /// <summary>The index of the group that contains the end box.</summary>
+    public ushort ToGroupIndex { get; set; }
+
+    /// <summary>Probably the side of the end box the connector is attached to (3 or 4 in the samples).</summary>
+    [TypeConverter(typeof(HexTypeConverter))]
+    public ushort ToAnchor { get; set; }
 
     [TypeConverter(typeof(HexTypeConverter))]
-    public ushort Unknown3 { get; set; }
-
-    public ushort TargetIndex { get; set; }
-
-    public ushort TargetLevel { get; set; }
+    public uint Unknown1 { get; set; }
 
     [TypeConverter(typeof(HexTypeConverter))]
-    public ushort Unknown4 { get; set; }
+    public uint Unknown2 { get; set; }
 
     [TypeConverter(typeof(HexTypeConverter))]
-    public ushort Unknown5 { get; set; }
-
-    [TypeConverter(typeof(HexTypeConverter))]
-    public ushort Unknown6 { get; set; }
-
-    [TypeConverter(typeof(HexTypeConverter))]
-    public ushort Unknown7 { get; set; }
-
-    [TypeConverter(typeof(HexTypeConverter))]
-    public ushort Unknown8 { get; set; }
-
-    [TypeConverter(typeof(HexTypeConverter))]
-    public ushort Unknown9 { get; set; }
-
-    [TypeConverter(typeof(HexTypeConverter))]
-    public ushort Unknown10 { get; set; }
+    public uint Unknown3 { get; set; }
 
     internal ConnectorRecord(OrganizationChartRecordId id, byte[] bytes) : base(id, bytes)
     {
         int offset = 0;
+
         Size = ReadUInt16(offset);
         offset += 2;
-        OriginIndex = ReadUInt16(offset);
+
+        FromBoxIndex = ReadUInt16(offset);
         offset += 2;
-        OriginLevel = ReadUInt16(offset);
+
+        FromGroupIndex = ReadUInt16(offset);
         offset += 2;
-        Unknown3 = ReadUInt16(offset);
+
+        FromAnchor = ReadUInt16(offset);
         offset += 2;
-        TargetIndex = ReadUInt16(offset);
+
+        ToBoxIndex = ReadUInt16(offset);
         offset += 2;
-        TargetLevel = ReadUInt16(offset);
+
+        ToGroupIndex = ReadUInt16(offset);
         offset += 2;
-        Unknown4 = ReadUInt16(offset);
+
+        ToAnchor = ReadUInt16(offset);
         offset += 2;
-        Unknown5 = ReadUInt16(offset);
-        offset += 2;
-        Unknown6 = ReadUInt16(offset);
-        offset += 2;
-        Unknown7 = ReadUInt16(offset);
-        offset += 2;
-        Unknown8 = ReadUInt16(offset);
-        offset += 2;
-        Unknown9 = ReadUInt16(offset);
-        offset += 2;
-        Unknown10 = ReadUInt16(offset);
+
+        Unknown1 = ReadUInt32(offset);
+        offset += 4;
+
+        Unknown2 = ReadUInt32(offset);
+        offset += 4;
+
+        Unknown3 = ReadUInt32(offset);
     }
 }

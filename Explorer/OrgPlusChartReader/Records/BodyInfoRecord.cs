@@ -8,7 +8,10 @@ public class BodyInfoRecord : OrganizationChartRecord
     public ushort Size { get; set; }
 
     [TypeConverter(typeof(HexTypeConverter))]
-    public ushort Unknown1 { get; set; }
+    /// <summary>
+    /// The number of boxes in the chart.
+    /// </summary>
+    public ushort BoxCount { get; set; }
 
     [TypeConverter(typeof(HexTypeConverter))]
     public ushort Unknown2 { get; set; }
@@ -28,14 +31,20 @@ public class BodyInfoRecord : OrganizationChartRecord
     [TypeConverter(typeof(HexTypeConverter))]
     public ushort Unknown7 { get; set; }
 
-    public Color Color { get; set; }
+    public Color BackgroundColor { get; set; }
+
+    /// <summary>
+    /// 0x00FF when the background is the default colour, otherwise 0.
+    /// </summary>
+    [TypeConverter(typeof(HexTypeConverter))]
+    public ushort DefaultColorMarker { get; set; }
 
     internal BodyInfoRecord(OrganizationChartRecordId id, byte[] bytes) : base(id, bytes)
     {
         int offset = 0;
         Size = ReadUInt16(offset);
         offset += 2;
-        Unknown1 = ReadUInt16(offset);
+        BoxCount = ReadUInt16(offset);
         offset += 2;
         Unknown2 = ReadUInt16(offset);
         offset += 2;
@@ -49,6 +58,8 @@ public class BodyInfoRecord : OrganizationChartRecord
         offset += 2;
         Unknown7 = ReadUInt16(offset);
         offset += 2;
-        Color = ReadColor(offset);
+        BackgroundColor = ReadColor(offset);
+
+        DefaultColorMarker = ReadUInt16(32);
     }
 }

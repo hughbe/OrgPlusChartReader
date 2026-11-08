@@ -4,11 +4,15 @@ namespace OrgPlusChartReader;
 
 public class SelectedRecord : OrganizationChartRecord
 {
+    /// <summary>
+    /// In the drawing shapes and connectors sections, the zero-based index of the selected item.
+    /// In a boxes section, 0x24 in every sample.
+    /// </summary>
     [TypeConverter(typeof(HexTypeConverter))]
-    public ushort Unknown { get; set; }
+    public ushort Value { get; set; }
 
     internal SelectedRecord(OrganizationChartRecordId id, byte[] bytes) : base(id, bytes)
     {
-        Unknown = ReadUInt16(0);
+        Value = ReadUInt16(0);
     }
 }

@@ -13,7 +13,7 @@ public class ShapeColorRecord : OrganizationChartRecord
     public Color Color { get; set; }
 
     [TypeConverter(typeof(HexTypeConverter))]
-    public ushort Unknown2 { get; set; }
+    public ushort DefaultColorMarker { get; set; }
 
     internal ShapeColorRecord(OrganizationChartRecordId id, byte[] bytes) : base(id, bytes)
     {
@@ -24,6 +24,6 @@ public class ShapeColorRecord : OrganizationChartRecord
         offset += 2;
         Color = ReadColor(offset);
         offset += 4;
-        Unknown2 = ReadUInt16(offset);
+        DefaultColorMarker = ReadUInt16(offset);
     }
 }
