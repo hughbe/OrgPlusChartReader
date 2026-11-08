@@ -384,6 +384,43 @@ public class OrganizationChartTests
         Assert.IsType<OrganizationChartRecord>(OrganizationChartRecord.Create(OrganizationChartRecordId.PictureHeader, new byte[40]));
     }
 
+    [Fact]
+    public void Ctor_SampleFile_HasViewUnitsPasswordFlagAndCharacterSet()
+    {
+        var records = Flatten(new OrganizationChart(ReadSample("Lots.opx")).Records).ToList();
+        Assert.Equal(144, records.OfType<ViewUnitsRecord>().Single().UnitsPerInch);
+        Assert.False(records.OfType<PasswordRecord>().Single().IsPasswordProtected);
+        Assert.Equal(BodyInfoRecord.TextCharacterSet.Ansi, records.OfType<BodyInfoRecord>().Single().CharacterSet);
+    }
+
+    [Fact]
+    public void Ctor_ExtendedRecordLength_IsRead()
+    {
+        // Rewrite Lots.opx's first text record (0x0060 "Name\0") with the 0xFFFF length escape.
+        byte[] data = ReadSample("Lots.opx");
+        byte[] original = { 0x60, 0x00, 0x05, 0x00, (byte)'N', (byte)'a', (byte)'m', (byte)'e', 0x00 };
+        int offset = IndexOf(data, original);
+        byte[] extended = { 0x60, 0x00, 0xFF, 0xFF, 0x05, 0x00, 0x00, 0x00, (byte)'N', (byte)'a', (byte)'m', (byte)'e', 0x00 };
+        byte[] body = data.Take(offset).Concat(extended).Concat(data.Skip(offset + original.Length).Take(data.Length - 14 - offset - original.Length)).ToArray();
+
+        // Rebuild the footer for the longer file.
+        var (sum, rotateXor) = FooterRecord.ComputeChecksums(body, body.Length);
+        byte[] footer = new byte[14];
+        BitConverter.GetBytes((ushort)0x0FFF).CopyTo(footer, 0);
+        BitConverter.GetBytes((ushort)10).CopyTo(footer, 2);
+        BitConverter.GetBytes((ushort)10).CopyTo(footer, 4);
+        BitConverter.GetBytes(sum).CopyTo(footer, 6);
+        BitConverter.GetBytes(rotateXor).CopyTo(footer, 8);
+        BitConverter.GetBytes((uint)body.Length).CopyTo(footer, 10);
+
+        var chart = new OrganizationChart(body.Concat(footer).ToArray());
+        Assert.True(chart.IsChecksumValid);
+        Assert.Contains(Flatten(chart.Records).OfType<TextRecord>(), x => x.Value == "Name");
+        Assert.Equal(
+            Flatten(new OrganizationChart(data).Records).Count(),
+            Flatten(chart.Records).Count());
+    }
+
     private static int IndexOf(byte[] data, byte[] pattern)
     {
         for (int i = 0; i <= data.Length - pattern.Length; i++)

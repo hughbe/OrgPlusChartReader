@@ -27,8 +27,10 @@ public class BodyInfoRecord : OrganizationChartRecord
     [TypeConverter(typeof(HexTypeConverter))]
     public ushort Unknown6 { get; set; }
 
-    [TypeConverter(typeof(HexTypeConverter))]
-    public ushort Unknown7 { get; set; }
+    /// <summary>
+    /// The character set of the file's text. Other values make the program refuse the file.
+    /// </summary>
+    public TextCharacterSet CharacterSet { get; set; }
 
     public Color BackgroundColor { get; set; }
 
@@ -56,10 +58,19 @@ public class BodyInfoRecord : OrganizationChartRecord
         offset += 2;
         Unknown6 = ReadUInt16(offset);
         offset += 2;
-        Unknown7 = ReadUInt16(offset);
+        CharacterSet = (TextCharacterSet)ReadUInt16(offset);
         offset += 2;
         BackgroundColor = ReadColor(offset);
 
         ColorHighByte = ReadUInt16(32);
+    }
+
+    public enum TextCharacterSet : ushort
+    {
+        /// <summary>Text is in the OEM (DOS) code page.</summary>
+        Oem = 0,
+
+        /// <summary>Text is in the ANSI (Windows-1252) code page.</summary>
+        Ansi = 1,
     }
 }

@@ -93,16 +93,23 @@ public class OrganizationChart
             }
             else
             {
-                int length = ReadUInt16(data, ref position);
+                int recordOffset = position - 2;
+                long length = ReadUInt16(data, ref position);
+                if (length == 0xFFFF)
+                {
+                    // A length of 0xFFFF is an escape: the real length follows as a 32-bit value.
+                    length = ReadUInt16(data, ref position) | ((long)ReadUInt16(data, ref position) << 16);
+                }
+
                 if (length > data.Length - position)
                 {
                     throw new InvalidDataException(
-                        $"Record 0x{rawId:X4} at offset {position - 4} declares {length} byte(s) but only {data.Length - position} remain.");
+                        $"Record 0x{rawId:X4} at offset {recordOffset} declares {length} byte(s) but only {data.Length - position} remain.");
                 }
 
-                var recordData = new byte[length];
-                Buffer.BlockCopy(data, position, recordData, 0, length);
-                position += length;
+                var recordData = new byte[(int)length];
+                Buffer.BlockCopy(data, position, recordData, 0, recordData.Length);
+                position += recordData.Length;
 
                 AddRecord(records, substreamStack, OrganizationChartRecord.Create(id, recordData));
             }

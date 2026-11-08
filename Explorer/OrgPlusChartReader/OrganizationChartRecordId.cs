@@ -2,7 +2,7 @@
 
 public enum OrganizationChartRecordId : ushort
 {
-    Copyright2 = 0x0001,
+    Password = 0x0001,
     Unknown0x0002 = 0x0002,
     Unknown0x0003 = 0x0003,
     BoxTextPartCount = 0x0010,
@@ -10,7 +10,7 @@ public enum OrganizationChartRecordId : ushort
     BoxTextPartType = 0x0012,
     Unknown0x0013 = 0x0013,
     BodyInfo = 0x0020,
-    Unknown0x0021 = 0x0021,
+    ViewUnits = 0x0021,
     Unknown0x0022 = 0x0022,
     BoxTemplate = 0x0023,
     Unknown0x0024 = 0x0024,
@@ -53,6 +53,7 @@ public enum OrganizationChartRecordId : ushort
     Unknown0x009B = 0x009B,
     Unknown0x0160 = 0x0160,
     Copyright = 0x0D0A,
+    Unknown0x0FFC = 0x0FFC,
     GlobalInfo = 0x0FFD,
     Footer = 0x0FFF,
     Unknown0x1000 = 0x1000,
