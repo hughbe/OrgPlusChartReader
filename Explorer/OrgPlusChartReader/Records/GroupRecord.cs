@@ -11,15 +11,16 @@ public class GroupRecord : OrganizationChartRecord
     public ushort Size { get; set; }
 
     /// <summary>
-    /// The group's number. In every sample this is its zero-based position in the file and also its depth
-    /// in the tree, so which of the two it really is is unknown.
+    /// The group's id in the program's object table. Connectors (<see cref="ConnectorRecord"/>) refer to
+    /// groups by this id. Ids are assigned when groups are created, so in a new chart they match file order.
     /// </summary>
-    public ushort GroupIndex { get; set; }
+    public ushort GroupId { get; set; }
 
     /// <summary>
-    /// A second copy of <see cref="GroupIndex"/>: the program writes the same field twice.
+    /// The id the program uses for the group's assistant part when it reads the file. The program writes
+    /// <see cref="GroupId"/> here too.
     /// </summary>
-    public ushort GroupIndexCopy { get; set; }
+    public ushort AssistantPartGroupId { get; set; }
 
     /// <summary>
     /// The index of the parent group, or -1 for the root group.
@@ -37,10 +38,9 @@ public class GroupRecord : OrganizationChartRecord
     public ushort Count { get; set; }
 
     /// <summary>
-    /// Non-zero (2 in the samples) for a group of assistants; otherwise 0.
+    /// How many of the group's <see cref="Count"/> boxes are assistants.
     /// </summary>
-    [TypeConverter(typeof(HexTypeConverter))]
-    public ushort AssistantIndicator { get; set; }
+    public ushort AssistantCount { get; set; }
 
     /// <summary>
     /// Group flag 0x20.
@@ -60,12 +60,12 @@ public class GroupRecord : OrganizationChartRecord
     internal GroupRecord(OrganizationChartRecordId id, byte[] bytes) : base(id, bytes)
     {
         Size = ReadUInt16(0);
-        GroupIndex = ReadUInt16(2);
-        GroupIndexCopy = ReadUInt16(4);
+        GroupId = ReadUInt16(2);
+        AssistantPartGroupId = ReadUInt16(4);
         ParentGroupIndex = ReadInt16(6);
         ParentBoxIndex = ReadUInt16(8);
         Count = ReadUInt16(10);
-        AssistantIndicator = ReadUInt16(12);
+        AssistantCount = ReadUInt16(12);
         Flag0x20 = ReadByte(14) != 0;
         Flag0x40 = ReadByte(15) != 0;
         IsCoManager = ReadByte(16) != 0;

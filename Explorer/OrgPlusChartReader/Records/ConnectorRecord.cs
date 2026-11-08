@@ -3,7 +3,7 @@
 namespace OrgPlusChartReader;
 
 /// <summary>
-/// A user-drawn connector between two boxes (0x0055). It is followed by its <see cref="LineRecord"/>.
+/// A user-drawn connector between two boxes (0x0055), called an "aux line" in the program's menus. It is followed by its <see cref="LineRecord"/>.
 /// </summary>
 public class ConnectorRecord : OrganizationChartRecord
 {
@@ -12,8 +12,8 @@ public class ConnectorRecord : OrganizationChartRecord
     /// <summary>The one-based index of the box the connector starts at.</summary>
     public ushort FromBoxIndex { get; set; }
 
-    /// <summary>The index of the group that contains the start box.</summary>
-    public ushort FromGroupIndex { get; set; }
+    /// <summary>The id (<see cref="GroupRecord.GroupId"/>) of the group that contains the start box.</summary>
+    public ushort FromGroupId { get; set; }
 
     /// <summary>Probably the side of the start box the connector is attached to (3 or 4 in the samples).</summary>
     [TypeConverter(typeof(HexTypeConverter))]
@@ -22,8 +22,8 @@ public class ConnectorRecord : OrganizationChartRecord
     /// <summary>The one-based index of the box the connector ends at.</summary>
     public ushort ToBoxIndex { get; set; }
 
-    /// <summary>The index of the group that contains the end box.</summary>
-    public ushort ToGroupIndex { get; set; }
+    /// <summary>The id (<see cref="GroupRecord.GroupId"/>) of the group that contains the end box.</summary>
+    public ushort ToGroupId { get; set; }
 
     /// <summary>Probably the side of the end box the connector is attached to (3 or 4 in the samples).</summary>
     [TypeConverter(typeof(HexTypeConverter))]
@@ -48,7 +48,7 @@ public class ConnectorRecord : OrganizationChartRecord
         FromBoxIndex = ReadUInt16(offset);
         offset += 2;
 
-        FromGroupIndex = ReadUInt16(offset);
+        FromGroupId = ReadUInt16(offset);
         offset += 2;
 
         FromAnchor = ReadUInt16(offset);
@@ -57,7 +57,7 @@ public class ConnectorRecord : OrganizationChartRecord
         ToBoxIndex = ReadUInt16(offset);
         offset += 2;
 
-        ToGroupIndex = ReadUInt16(offset);
+        ToGroupId = ReadUInt16(offset);
         offset += 2;
 
         ToAnchor = ReadUInt16(offset);

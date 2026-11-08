@@ -23,15 +23,17 @@ public class GlobalInfoRecord : OrganizationChartRecord
     public ushort Unknown6 { get; set; }
 
     [TypeConverter(typeof(HexTypeConverter))]
-    public ushort Unknown7 { get; set; }
+    public short Magnification { get; set; }
 
     public GlobalGroupsStyle GroupsStyle { get; set; }
 
     [TypeConverter(typeof(HexTypeConverter))]
     public ushort Unknown8 { get; set; }
 
-    [TypeConverter(typeof(HexTypeConverter))]
-    public ushort Unknown9 { get; set; }
+    /// <summary>
+    /// The default style for assistant groups, using the same codes as <see cref="GroupsStyle"/> (25 in the samples).
+    /// </summary>
+    public ushort DefaultAssistantStyle { get; set; }
 
     public short Unknown10 { get; set; }
 
@@ -42,11 +44,11 @@ public class GlobalInfoRecord : OrganizationChartRecord
     /// </summary>
     public ushort BoxSelected { get; set; }
 
-    [TypeConverter(typeof(HexTypeConverter))]
-    public ushort Unknown12 { get; set; }
+    /// <summary>The chart window's horizontal scroll position.</summary>
+    public ushort HorizontalScrollPosition { get; set; }
 
-    [TypeConverter(typeof(HexTypeConverter))]
-    public ushort Unknown13 { get; set; }
+    /// <summary>The chart window's vertical scroll position.</summary>
+    public ushort VerticalScrollPosition { get; set; }
 
     internal GlobalInfoRecord(OrganizationChartRecordId id, byte[] bytes) : base(id, bytes)
     {
@@ -63,14 +65,14 @@ public class GlobalInfoRecord : OrganizationChartRecord
         offset += 2;
         Unknown6 = ReadUInt16(offset);
         offset += 2;
-        Unknown7 = ReadUInt16(offset);
+        Magnification = ReadInt16(offset);
         offset += 2;
         GroupsStyle = (GlobalGroupsStyle)ReadUInt16(offset);
         offset += 2;
         Unknown8 = ReadUInt16(offset);
         offset += 2;
 
-        Unknown9 = ReadUInt16(offset);
+        DefaultAssistantStyle = ReadUInt16(offset);
         offset += 2;
 
         Unknown10 = ReadInt16(offset);
@@ -82,8 +84,8 @@ public class GlobalInfoRecord : OrganizationChartRecord
         BoxSelected = ReadUInt16(offset);
 
         // Bytes 26-29 are never written by the program and contain leftover data.
-        Unknown12 = ReadUInt16(30);
-        Unknown13 = ReadUInt16(32);
+        HorizontalScrollPosition = ReadUInt16(30);
+        VerticalScrollPosition = ReadUInt16(32);
     }
 
     public enum GlobalGroupsStyle: ushort

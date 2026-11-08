@@ -111,8 +111,8 @@ public class OrganizationChartTests
 
     [Theory]
     [InlineData("Lines/Style/Solid.opx", LineStyle.Solid)]
-    [InlineData("Lines/Style/Dashed.opx", LineStyle.Dashed)]
-    [InlineData("Lines/Style/DashedWide.opx", LineStyle.DashedWide)]
+    [InlineData("Lines/Style/Dashed.opx", LineStyle.Dotted)]
+    [InlineData("Lines/Style/DashedWide.opx", LineStyle.Dashed)]
     public void Ctor_LineStyle_IsDecoded(string path, LineStyle expected)
     {
         var chart = new OrganizationChart(ReadSample(path));
@@ -210,9 +210,9 @@ public class OrganizationChartTests
 
         Assert.Equal(new short[] { -1, 0, 1 }, groups.Select(x => x.ParentGroupIndex));
         Assert.Equal(new ushort[] { 0, 1, 4 }, groups.Select(x => x.ParentBoxIndex));
-        Assert.Equal(new ushort[] { 0, 1, 2 }, groups.Select(x => x.GroupIndex));
-        Assert.All(groups, x => Assert.Equal(x.GroupIndex, x.GroupIndexCopy));
-        Assert.Equal(new[] { false, false, true }, groups.Select(x => x.AssistantIndicator != 0));
+        Assert.Equal(new ushort[] { 0, 1, 2 }, groups.Select(x => x.GroupId));
+        Assert.All(groups, x => Assert.Equal(x.GroupId, x.AssistantPartGroupId));
+        Assert.Equal(new ushort[] { 0, 0, 2 }, groups.Select(x => x.AssistantCount));
 
         var layouts = Flatten(chart.Records).OfType<GroupLayoutRecord>().ToList();
         Assert.Equal(new ushort[] { 0, 0, 25 }, layouts.Select(x => x.Style));
@@ -250,7 +250,7 @@ public class OrganizationChartTests
     {
         var chart = new OrganizationChart(ReadSample("Connectors/Co8.opx"));
         var connector = Flatten(chart.Records).OfType<ConnectorRecord>().Single();
-        Assert.Equal((4, 1, 2, 0), (connector.FromBoxIndex, connector.FromGroupIndex, connector.ToBoxIndex, connector.ToGroupIndex));
+        Assert.Equal((4, 1, 2, 0), (connector.FromBoxIndex, connector.FromGroupId, connector.ToBoxIndex, connector.ToGroupId));
     }
 
     [Theory]

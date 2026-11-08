@@ -28,6 +28,10 @@ The program's error messages and exported function names give the original names
 | silent position | 🟡 box type 4 |
 | free object | a drawing shape |
 | bitmap data | the picture records |
+| aux line | a user-drawn connector (`0x0055`) |
+| connecting line | a line from a parent box to a box in a group (`0x400C`) |
+| background box, background line | drawing shapes (`0x400E`) |
+| image | a picture shape |
 
 ## Contents
 
@@ -215,7 +219,7 @@ The tree below shows everything the program writes, in order. `[ ]` marks option
 
 ✅ The chart is a tree of **groups**. A group is a set of sibling boxes that share one parent box.
 
-- Each group (`0x0041`) records its number, its parent group and its parent box.
+- Each group (`0x0041`) records its id, its parent group, its parent box, its box count and how many of those boxes are assistants.
 - Groups are written in pre-order: a parent group always comes before its children.
 - Boxes are numbered `1, 2, 3 …` across the whole chart, in file order (`0x0050`).
 - `0x0020` PageInfo records the total box count.
@@ -434,16 +438,16 @@ Each field is a `0x0011` FieldIndex (`u16`, zero-based), a `0x0012` FieldKind (`
 | 6 | u16 | boolean: document flag `0x00100000` | |
 | 8 | u16 | boolean: document flag at `+0x2A` bit 0 | 1 |
 | 10 | u16 | boolean: document flag at `+0x2A` bit 1 | 1 |
-| 12 | i16 | ❓ a signed document value, negated when a flag is set | 0 or −564 |
+| 12 | i16 | 🟡 magnification | The view's zoom; the program writes it negated when a view mode flag is set, probably "Size to Window". 0 or −564 in the samples. |
 | 14 | u16 | ✅ default group style | §5.6 |
-| 16 | u16 | ❓ | 0 |
-| 18 | u16 | ✅ a second layout style, using the same codes as offset 14 | 25 (`.opx`), 29 (`.ops`) |
-| 20 | i16 | ❓ | −1, 0, 1 |
-| 22 | i16 | ❓ | −1, 0, 2 |
+| 16 | u16 | ✅ a parameter stored with the default group style | 0 |
+| 18 | u16 | ✅ default assistant style | Same codes as offset 14. Choosing an assistant style (internal 23–33) on the Styles menu stores it here instead of at offset 14. 25 (`.opx`), 29 (`.ops`). |
+| 20 | i16 | 🟡 selection anchor | One half of a point the program records when a box selection starts; −1 when there is none. −1, 0, 1 in the samples. |
+| 22 | i16 | 🟡 selection anchor | The other half of that point. −1, 0, 2 in the samples. |
 | 24 | u16 | 🟡 selection kind | 1 exactly when a box is selected (18 of 18 samples) |
 | 26 | u8[4] | leftover data | ✅ never written (§6); "r Bl" in the `.ops` sample |
-| 30 | u16 | ❓ | 0; 133 (`.ops`); 219 (`TEMPLATE.MSO`) |
-| 32 | u16 | ❓ | 0 |
+| 30 | u16 | ✅ horizontal scroll position | from `GetScrollPos` on the chart window; 0, 133 (`.ops`), 219 (`TEMPLATE.MSO`) |
+| 32 | u16 | ✅ vertical scroll position | 0 |
 
 ✅ When reading GLOBALINFO, the program:
 - **ignores offset 0**, so the 4-versus-8 difference between builds has no effect;
@@ -563,12 +567,12 @@ Each part is a `0x0026` TitlePartIndex (`u16`), a `0x0060` Text and an optional 
 | Offset | Type | Field | |
 |---|---|---|---|
 | 0 | u16 | cb = 17 | ✅ |
-| 2 | u16 | group number | ✅ In every sample this equals both the group's position in the file and its depth, so it is unknown which it is. |
-| 4 | u16 | group number again | ✅ the program writes the same field twice |
+| 2 | u16 | group id | ✅ The group's id in the program's object table (class `0x65`). Connectors refer to groups by this id. Ids are assigned when groups are created, so in a new chart they match file order. |
+| 4 | u16 | assistant-part group id | ✅ The program writes the group id here too. When reading, it uses this id for the group's assistant part. |
 | 6 | i16 | parent group index | ✅ −1 for the root group |
 | 8 | u16 | parent box index | ✅ one-based; 0 for the root group |
 | 10 | u16 | box count | ✅ the number of `0x0050` records in the following `0x4007` |
-| 12 | u16 | assistant indicator | ✅ non-zero (2 in the samples) for an assistant group |
+| 12 | u16 | assistant count | ✅ how many of the group's boxes are assistants. The reader splits the group into ordinary boxes (offset 10 minus offset 12) and assistants. |
 | 14 | u8 | group flag `0x20` | ✅ |
 | 15 | u8 | group flag `0x40` | ✅ |
 | 16 | u8 | co-manager | ✅ 1 when the group uses the co-manager layout |
@@ -700,16 +704,16 @@ The canvas section's `0x4010` lists all the defaults. Sections on boxes, title p
 
 #### `0x0055` Connector
 
-✅ A user-drawn connector between two boxes, followed by its `0x0056` Line.
+✅ A user-drawn connector between two boxes (an "aux line" in the program's menus), followed by its `0x0056` Line.
 
 | Offset | Type | Field | |
 |---|---|---|---|
 | 0 | u16 | cb = 26 | ✅ |
 | 2 | u16 | from: box index | ✅ |
-| 4 | u16 | from: group index | ✅ |
+| 4 | u16 | from: group id | ✅ `0x0041` offset 2 |
 | 6 | u16 | from: anchor side | 🟡 3 or 4 |
 | 8 | u16 | to: box index | ✅ |
-| 10 | u16 | to: group index | ✅ |
+| 10 | u16 | to: group id | ✅ `0x0041` offset 2 |
 | 12 | u16 | to: anchor side | 🟡 3 or 4 |
 | 14 | u32[3] | ❓ | 18, 18, 18. Possibly the lengths of the elbow segments. |
 
@@ -781,6 +785,17 @@ The fields are edges, not a position and size. For example, a horizontal line ha
 | default (width 2) | 1 |
 | width *w* > 2 | `10 + w / 2` |
 
+✅ The Boxes > Border Style menu's command ids are the pen codes themselves, so the menu maps directly onto the stored values:
+
+| Menu item | Pen code | Value | Menu item | Pen code | Value |
+|---|---|---|---|---|---|
+| 1 | 1500 | `0x00` (none) | 7 | 1501 | `0x0A` (hairline) |
+| 2 | 1502 | `0x01` | 8 | 1504 | `0x0C` |
+| 3 | 1506 | `0x0D` | 9 | 1508 | `0x0E` |
+| 4 | 1542 | `0x1F` | 10 | 1524 | `0x16` |
+| 5 | 1562 | `0x29` | 11 | 1526 | `0x17` |
+| 6 | 1582 | `0x33` | 12 | 1528 | `0x18` |
+
 The samples:
 
 | Value | Sample | Value | Sample |
@@ -798,10 +813,10 @@ The samples:
 |---|---|
 | 0 | No line |
 | 1 | Solid |
-| 3 | Dashed |
-| 4 | Dashed (wide) |
+| 3 | Dotted |
+| 4 | Dashed |
 
-✅ The program never writes 2.
+✅ The names come from the program's Style menus (Solid, Dotted, Dashed). The program never writes 2. The samples `Lines/Style/Dashed.opx` and `DashedWide.opx` are really dotted and dashed.
 
 ### 5.3 Shadow
 
@@ -815,7 +830,7 @@ The samples:
 | top edge | +40 |
 | bottom edge | +80 |
 
-It is 0 when there is no shadow. In the samples:
+It is 0 when there is no shadow. The Boxes > Shadow menu offers 8 presets (command ids `0x641`–`0x648`). In the samples:
 
 | Type (`0x0092` offset 2) | Offsets (v, h) | Border offset 6 | Edges | Sample |
 |---|---|---|---|---|
@@ -831,17 +846,18 @@ It is 0 when there is no shadow. In the samples:
 
 ### 5.4 Line thickness (`0x0056` offset 4)
 
-✅ The pen width:
+✅ The pen width in half points. The Lines > Thickness menu's command ids are `0x6A4` + the stored value:
 
-| UI choice | Stored |
+| Menu | Stored |
 |---|---|
-| Hairline | 1 |
-| Thickness 1 | 2 (default) |
-| Thickness 2 | 4 |
-| Thickness 3 | 6 |
-| Thickness 4 | 8 |
-| Thickness 5 | 10 |
-| Thickness 6 | 12 |
+| None | 0 |
+| Hairline | 1 (sample `NoThickness.opx`) |
+| 1 pt | 2 (default) |
+| 2 pt | 4 |
+| 3 pt | 6 |
+| 4 pt | 8 |
+| 5 pt | 10 |
+| 6 pt | 12 |
 
 ### 5.5 Text-style properties (`0x0061`)
 
@@ -869,7 +885,7 @@ It is 0 when there is no shadow. In the samples:
 
 ### 5.6 Layout style (`0x0FFD` offsets 14 and 18, `0x0042` offsets 12 and 14)
 
-✅ The program converts its internal layout codes to a fixed set of file codes. The valid file values are 0–9, 12, 15, 16, 18, 19, 22–26, 28, 29 and 32–34. In the samples:
+✅ The program converts its internal layout codes to a fixed set of file codes. The valid file values are 0–9, 12, 15, 16, 18, 19, 22–26, 28, 29 and 32–34. Internal codes 23–33 are assistant layouts: the program keeps the default for those separately (`0x0FFD` offset 18). In the samples:
 
 | Value | Sample |
 |---|---|
@@ -937,11 +953,10 @@ It is 0 when there is no shadow. In the samples:
 
 ## 7. Open questions
 
-- What the document, group and box fields behind many values are, for example `0x0FFD` offsets 12 and 16–32, most of `0x0020` and `0x0022`, and `0x0042` offsets 2–10. Answering this means tracing the program's UI code that sets those fields.
+- What the document, group and box fields behind some values are, for example `0x0FFD` offsets 2–10, most of `0x0020` and `0x0022`, and `0x0042` offsets 2–10. Answering this means tracing the program's UI code that sets those fields.
 - The layout of the picture records, the field extras and `0x0FFC`.
 - How a password is stored in `0x0001` by versions that support passwords.
-- Whether the `0x0041` group number is a position in the file or a depth (a chart with two groups at the same depth would tell).
-- What the second default object (`0x0095`, `0x0096`) applies to.
+- What the second default object (`0x0095`, `0x0096`) applies to. 🟡 The chart window's paint routine reads it while drawing the background, so it is probably a frame drawn around the chart or its title.
 - The connector's anchor sides and its trailing `u32` values.
 - The FieldKind (`0x0012`) values.
 - What the `0x0002` kind flag changes when a file is loaded.
@@ -960,3 +975,4 @@ Findings came from:
    - a record-header reader (`0x494089`) shared by 21 reader functions
 
    Listing the ids each reader compares against, and the error message each check raises (string resources `0x5DD`–`0x5EF`), gave the validation rules, the extended length, VIEWUNITS, the character set and the original terminology.
+6. **Tracing the interface code.** The menu and dialog resources name each command. Following the code that sets each document field (for example the Styles menu handler, and the code that calls `GetScrollPos`) identified the GLOBALINFO fields, the border-style and thickness menus, and the line-style names. Following the reader for `0x0041` identified the group id and assistant count.
