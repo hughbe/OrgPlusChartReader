@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.IO;
 using System.Text;
 using System.Windows.Forms;
@@ -83,9 +83,18 @@ public partial class Form1 : Form
             return false;
         }
 
-        using FileStream stream = File.Open(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
-        chart = new OrganizationChart(stream);
-        return true;
+        try
+        {
+            using FileStream stream = File.Open(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+            chart = new OrganizationChart(stream);
+            return true;
+        }
+        catch (Exception ex) when (ex is InvalidDataException || ex is IOException || ex is UnauthorizedAccessException)
+        {
+            MessageBox.Show($"Could not read {path}: {ex.Message}");
+            chart = null;
+            return false;
+        }
     }
 
     private void GenerateDiff()
@@ -132,11 +141,28 @@ public partial class Form1 : Form
         }
 
         var builder = new StringBuilder();
-        foreach ((ushort id, byte[] data) in chart.Records)
+        void Append(OrganizationChartRecord record, int depth)
         {
-            builder.AppendLine($"Id: {GetName(id)}");
-            builder.AppendLine($"Data: {HexDump(data)}");
+            string indent = new string(' ', depth * 2);
+            builder.AppendLine($"{indent}Id: {GetName((ushort)record.Id)}");
+            if (record is OrganizationChartSubstream substream)
+            {
+                foreach (OrganizationChartRecord child in substream.Records)
+                {
+                    Append(child, depth + 1);
+                }
+            }
+            else
+            {
+                builder.AppendLine($"{indent}Data: {HexDump(record.Bytes)}");
+            }
+
             builder.AppendLine();
+        }
+
+        foreach (OrganizationChartRecord record in chart.Records)
+        {
+            Append(record, 0);
         }
 
         return builder.ToString();
@@ -247,27 +273,23 @@ public partial class Form1 : Form
         _dumpDirty = false;
         dumpTreeView.Nodes.Clear();
 
-        TreeNode node = dumpTreeView.Nodes.Add("Root");
-
-        foreach ((ushort id, byte[] data) in chart.Records)
+        void AddNodes(TreeNodeCollection nodes, OrganizationChartRecord record)
         {
-            if (id >= 0x4000)
+            TreeNode node = nodes.Add(GetName((ushort)record.Id));
+            node.Tag = record;
+            if (record is OrganizationChartSubstream substream)
             {
-                if (node.Tag is ValueTuple<ushort, byte[]> tag && tag.Item1 == id - 0x2000)
+                foreach (OrganizationChartRecord child in substream.Records)
                 {
-                    node = node.Parent;
-                }
-                else
-                {
-                    node = node.Nodes.Add(GetName(id));
-                    node.Tag = (id, data);
+                    AddNodes(node.Nodes, child);
                 }
             }
-            else
-            {
-                TreeNode newNode = node.Nodes.Add(GetName(id));
-                newNode.Tag = (id, data);
-            }
+        }
+
+        TreeNode root = dumpTreeView.Nodes.Add("Root");
+        foreach (OrganizationChartRecord record in chart.Records)
+        {
+            AddNodes(root.Nodes, record);
         }
 
         dumpTreeView.ExpandAll();
@@ -275,49 +297,19 @@ public partial class Form1 : Form
 
     private void dumpTreeView_AfterSelect(object sender, TreeViewEventArgs e)
     {
-        if (dumpTreeView.SelectedNode != null && dumpTreeView.SelectedNode.Tag is ValueTuple<ushort, byte[]> tag)
+        if (dumpTreeView.SelectedNode?.Tag is OrganizationChartRecord record)
         {
-            Display(tag.Item1, tag.Item2);
+            // Records are already parsed into their specific types, so show them directly.
+            byteViewer.SetBytes(record.Bytes);
+            propertyGrid.SelectedObject = record;
         }
         else
         {
-            byteViewer.SetBytes([]);
+            byteViewer.SetBytes(new byte[0]);
             propertyGrid.SelectedObject = new object();
-            propertyGrid.Update();
         }
-    }
 
-    private void Display(ushort id, byte[] data)
-    {
-        byteViewer.SetBytes(data);
-        using (var stream = new MemoryStream(data))
-        using (var reader = new BinaryReader(stream))
-        {
-            propertyGrid.SelectedObject = (OrganizationChartRecordId)(OrganizationChartRecordId)id switch
-            {
-                OrganizationChartRecordId.BoxTextPartCount => new BoxTextPartCountRecord(reader),
-                OrganizationChartRecordId.BoxTextPartIndex => new BoxTextPartIndexRecord(reader),
-                OrganizationChartRecordId.BoxTextPartType => new BoxTextPartTypeRecord(reader),
-                OrganizationChartRecordId.BodyInfo => new BodyInfoRecord(reader),
-                OrganizationChartRecordId.FontName => new FontNameRecord(reader),
-                OrganizationChartRecordId.TitlePartIndex => new TitlePartIndexRecord(reader),
-                OrganizationChartRecordId.Level => new LevelRecord(reader),
-                OrganizationChartRecordId.BoxIndex => new BoxIndexRecord(reader),
-                OrganizationChartRecordId.Border => new BorderRecord(reader),
-                OrganizationChartRecordId.Connector => new ConnectorRecord(reader),
-                OrganizationChartRecordId.Line => new LineRecord(reader),
-                OrganizationChartRecordId.Text => new TextRecord(reader),
-                OrganizationChartRecordId.Shape => new ShapeRecord(reader),
-                OrganizationChartRecordId.ShapeColor => new ShapeColorRecord(reader),
-                OrganizationChartRecordId.Selected => new SelectedRecord(reader),
-                OrganizationChartRecordId.Shadow => new ShadowRecord(reader),
-                OrganizationChartRecordId.FontIndex => new FontIndexRecord(reader),
-                OrganizationChartRecordId.Footer => new FooterRecord(reader),
-                OrganizationChartRecordId.GlobalInfo => new GlobalInfoRecord(reader),
-                _ => new object(),
-            };
-            propertyGrid.Update();
-        }
+        propertyGrid.Update();
     }
 
     private bool _dumpDirty = false;

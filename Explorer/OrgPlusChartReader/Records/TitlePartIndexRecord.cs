@@ -4,7 +4,7 @@ public class TitlePartIndexRecord : OrganizationChartRecord
 {
     public ushort Index { get; set; }
 
-    public TitlePartIndexRecord(OrganizationChartRecordId id, BinaryReader reader) : base(id, reader)
+    internal TitlePartIndexRecord(OrganizationChartRecordId id, byte[] bytes) : base(id, bytes)
     {
         Index = ReadUInt16(0);
     }

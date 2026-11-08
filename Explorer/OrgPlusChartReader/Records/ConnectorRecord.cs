@@ -38,7 +38,7 @@ public class ConnectorRecord : OrganizationChartRecord
     [TypeConverter(typeof(HexTypeConverter))]
     public ushort Unknown10 { get; set; }
 
-    public ConnectorRecord(OrganizationChartRecordId id, BinaryReader reader) : base(id, reader)
+    internal ConnectorRecord(OrganizationChartRecordId id, byte[] bytes) : base(id, bytes)
     {
         int offset = 0;
         Size = ReadUInt16(offset);

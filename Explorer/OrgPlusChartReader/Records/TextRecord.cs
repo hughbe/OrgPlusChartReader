@@ -4,8 +4,8 @@ public class TextRecord : OrganizationChartRecord
 {
     public string Value{ get; set; }
 
-    public TextRecord(OrganizationChartRecordId id, BinaryReader reader) : base(id, reader)
+    internal TextRecord(OrganizationChartRecordId id, byte[] bytes) : base(id, bytes)
     {
-        Value = ReadASCIIString(0, RecordSize);
+        Value = ReadString(0, RecordSize);
     }
 }

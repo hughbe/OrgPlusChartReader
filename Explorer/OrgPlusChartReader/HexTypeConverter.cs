@@ -1,66 +1,73 @@
-﻿using System.ComponentModel;
+using System.ComponentModel;
 using System.Globalization;
 
 namespace OrgPlusChartReader;
 
 public class HexTypeConverter : TypeConverter
 {
-    public override bool CanConvertFrom(ITypeDescriptorContext context, Type sourceType)
+    public override bool CanConvertFrom(ITypeDescriptorContext? context, Type sourceType)
     {
         if (sourceType == typeof(string))
         {
             return true;
         }
-        
+
         return base.CanConvertFrom(context, sourceType);
     }
 
-    public override bool CanConvertTo(ITypeDescriptorContext context, Type destinationType)
+    public override bool CanConvertTo(ITypeDescriptorContext? context, Type? destinationType)
     {
         if (destinationType == typeof(string))
         {
             return true;
         }
-        
+
         return base.CanConvertTo(context, destinationType);
     }
 
-    public override object ConvertTo(ITypeDescriptorContext context, CultureInfo culture, object value, Type destinationType)
+    public override object? ConvertTo(ITypeDescriptorContext? context, CultureInfo? culture, object? value, Type destinationType)
     {
-        if (destinationType == typeof(string) && value is uint l)
+        if (destinationType == typeof(string))
         {
-            return $"0x{l:X8}";
-        }
-        else if (destinationType == typeof(string) && value is uint u)
-        {
-            return $"0x{u:X8}";
-        }
-        else if (destinationType == typeof(string) && value is ushort s)
-        {
-            return $"0x{s:X4}";
-        }
-        else if (destinationType == typeof(string) && value is byte b)
-        {
-            return $"0x{b:X2}";
+            switch (value)
+            {
+                case uint u:
+                    return $"0x{u:X8}";
+                case ushort s:
+                    return $"0x{s:X4}";
+                case byte b:
+                    return $"0x{b:X2}";
+            }
         }
 
         return base.ConvertTo(context, culture, value, destinationType);
     }
 
-    public override object ConvertFrom(ITypeDescriptorContext context, CultureInfo culture, object value)
+    public override object? ConvertFrom(ITypeDescriptorContext? context, CultureInfo? culture, object value)
     {
-        if (value.GetType() == typeof(string))
+        if (value is string input)
         {
-            string input = (string)value;
-
             if (input.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
             {
                 input = input.Substring(2);
             }
 
-            return uint.Parse(input, NumberStyles.HexNumber, culture);
+            uint parsed = uint.Parse(input, NumberStyles.HexNumber, culture);
+
+            // Return the type of the property being edited, so that it can be assigned back.
+            Type? propertyType = context?.PropertyDescriptor?.PropertyType;
+            if (propertyType == typeof(ushort))
+            {
+                return checked((ushort)parsed);
+            }
+            else if (propertyType == typeof(byte))
+            {
+                return checked((byte)parsed);
+            }
+
+            return parsed;
         }
-        
+
         return base.ConvertFrom(context, culture, value);
     }
 }

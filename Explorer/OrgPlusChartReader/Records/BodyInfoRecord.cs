@@ -30,7 +30,7 @@ public class BodyInfoRecord : OrganizationChartRecord
 
     public Color Color { get; set; }
 
-    public BodyInfoRecord(OrganizationChartRecordId id, BinaryReader reader) : base(id, reader)
+    internal BodyInfoRecord(OrganizationChartRecordId id, byte[] bytes) : base(id, bytes)
     {
         int offset = 0;
         Size = ReadUInt16(offset);

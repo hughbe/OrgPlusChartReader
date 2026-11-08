@@ -4,50 +4,106 @@ namespace OrgPlusChartReader;
 
 public class OrganizationChartRecord
 {
+    // Text in .opx files was written by a Windows application, so it is assumed to be in the
+    // Windows-1252 ANSI code page. (All of the sample files only contain ASCII.)
+    private static readonly Encoding s_encoding = CodePagesEncodingProvider.Instance.GetEncoding(1252)!;
+
     public OrganizationChartRecordId Id { get; }
-    public int RecordSize { get; }
+
+    public int RecordSize => Bytes.Length;
+
     public byte[] Bytes { get; }
 
-    internal OrganizationChartRecord(OrganizationChartRecordId id, BinaryReader reader)
+    internal OrganizationChartRecord(OrganizationChartRecordId id, byte[] bytes)
     {
         Id = id;
+        Bytes = bytes ?? throw new ArgumentNullException(nameof(bytes));
+    }
 
-        if ((int)id >= 0x4000)
+    /// <summary>
+    /// Creates the most specific record type for the given ID from the record's raw data
+    /// (excluding the 2-byte ID and 2-byte length).
+    /// </summary>
+    /// <exception cref="InvalidDataException">The ID is a section marker, is unknown, or the data is too short for the record type.</exception>
+    public static OrganizationChartRecord Create(OrganizationChartRecordId id, byte[] bytes)
+    {
+        if (bytes == null)
         {
-            // Substream records do not have a length field
-            RecordSize = 0;
-            Bytes = [];
+            throw new ArgumentNullException(nameof(bytes));
         }
-        else
+
+        return id switch
         {
-            // Other records have a length field of 2 bytes
-            RecordSize = reader.ReadUInt16();
-            Bytes = reader.ReadBytes(RecordSize);
+            OrganizationChartRecordId.Copyright => new CopyrightRecord(id, bytes),
+            OrganizationChartRecordId.Copyright2 => new CopyrightRecord2(id, bytes),
+            OrganizationChartRecordId.Unknown0x0002 => new Unknown0x0002Record(id, bytes),
+            OrganizationChartRecordId.Unknown0x0003 => new Unknown0x0003Record(id, bytes),
+            OrganizationChartRecordId.BoxTextPartCount => new BoxTextPartCountRecord(id, bytes),
+            OrganizationChartRecordId.BoxTextPartIndex => new BoxTextPartIndexRecord(id, bytes),
+            OrganizationChartRecordId.BoxTextPartType => new BoxTextPartTypeRecord(id, bytes),
+            OrganizationChartRecordId.BodyInfo => new BodyInfoRecord(id, bytes),
+            OrganizationChartRecordId.FontName => new FontNameRecord(id, bytes),
+            OrganizationChartRecordId.TitlePartIndex => new TitlePartIndexRecord(id, bytes),
+            OrganizationChartRecordId.Level => new LevelRecord(id, bytes),
+            OrganizationChartRecordId.BoxIndex => new BoxIndexRecord(id, bytes),
+            OrganizationChartRecordId.Border => new BorderRecord(id, bytes),
+            OrganizationChartRecordId.Connector => new ConnectorRecord(id, bytes),
+            OrganizationChartRecordId.Line => new LineRecord(id, bytes),
+            OrganizationChartRecordId.Shape => new ShapeRecord(id, bytes),
+            OrganizationChartRecordId.ShapeColor => new ShapeColorRecord(id, bytes),
+            OrganizationChartRecordId.Selected => new SelectedRecord(id, bytes),
+            OrganizationChartRecordId.Shadow => new ShadowRecord(id, bytes),
+            OrganizationChartRecordId.FontIndex => new FontIndexRecord(id, bytes),
+            OrganizationChartRecordId.Text => new TextRecord(id, bytes),
+            OrganizationChartRecordId.GlobalInfo => new GlobalInfoRecord(id, bytes),
+            OrganizationChartRecordId.Footer => new FooterRecord(id, bytes),
+            _ when (ushort)id >= 0x4000 =>
+                throw new InvalidDataException($"0x{(ushort)id:X4} is a section marker, not a record."),
+            // Known IDs that are not yet specialized (including TextStyle) use the base record.
+            _ when Enum.IsDefined(typeof(OrganizationChartRecordId), id) => new OrganizationChartRecord(id, bytes),
+            _ => throw new InvalidDataException($"Unknown record ID: 0x{(ushort)id:X4}"),
+        };
+    }
+
+    private void EnsureAvailable(int offset, int count)
+    {
+        if (offset < 0 || count < 0 || offset > Bytes.Length - count)
+        {
+            throw new InvalidDataException(
+                $"Record 0x{(ushort)Id:X4} is too short: needs {count} byte(s) at offset {offset} but has {Bytes.Length} byte(s).");
         }
     }
 
     protected byte ReadByte(int offset)
     {
+        EnsureAvailable(offset, 1);
         return Bytes[offset];
     }
 
     protected ushort ReadUInt16(int offset)
     {
+        EnsureAvailable(offset, 2);
         return BitConverter.ToUInt16(Bytes, offset);
     }
 
     protected short ReadInt16(int offset)
     {
+        EnsureAvailable(offset, 2);
         return BitConverter.ToInt16(Bytes, offset);
     }
 
     protected uint ReadUInt32(int offset)
     {
+        EnsureAvailable(offset, 4);
         return BitConverter.ToUInt32(Bytes, offset);
     }
 
+    /// <summary>
+    /// Reads a 4-byte colour. The bytes are stored in the order red, blue, green, (unused).
+    /// </summary>
     protected System.Drawing.Color ReadColor(int offset)
     {
+        EnsureAvailable(offset, 4);
         byte red = Bytes[offset];
         byte blue = Bytes[offset + 1];
         byte green = Bytes[offset + 2];
@@ -55,13 +111,23 @@ public class OrganizationChartRecord
         return System.Drawing.Color.FromArgb(red, green, blue);
     }
 
-    protected string ReadASCIIString(int offset, int length)
+    /// <summary>
+    /// Reads a fixed-length string, dropping any trailing NUL terminators.
+    /// </summary>
+    protected string ReadString(int offset, int length)
     {
-        return Encoding.ASCII.GetString(Bytes, offset, length);
+        EnsureAvailable(offset, length);
+        while (length > 0 && Bytes[offset + length - 1] == 0)
+        {
+            length--;
+        }
+
+        return s_encoding.GetString(Bytes, offset, length);
     }
 
-    protected string ReadNullTerminatedASCIIString(int offset, out int bytesRead)
+    protected string ReadNullTerminatedString(int offset, out int bytesRead)
     {
+        EnsureAvailable(offset, 0);
         int endOffset = offset;
         while (endOffset < Bytes.Length && Bytes[endOffset] != 0)
         {
@@ -69,6 +135,6 @@ public class OrganizationChartRecord
         }
 
         bytesRead = endOffset - offset + 1; // +1 for null terminator
-        return Encoding.ASCII.GetString(Bytes, offset, endOffset - offset);
+        return s_encoding.GetString(Bytes, offset, endOffset - offset);
     }
 }

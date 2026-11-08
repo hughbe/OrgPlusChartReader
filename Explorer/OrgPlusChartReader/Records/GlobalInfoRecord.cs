@@ -30,7 +30,7 @@ public class GlobalInfoRecord : OrganizationChartRecord
     [TypeConverter(typeof(HexTypeConverter))]
     public ushort Unknown8 { get; set; }
 
-    public GlobalInfoRecord(OrganizationChartRecordId id, BinaryReader reader) : base(id, reader)
+    internal GlobalInfoRecord(OrganizationChartRecordId id, byte[] bytes) : base(id, bytes)
     {
         int offset = 0;
         Unknown1 = ReadUInt16(offset);

@@ -1,42 +1,79 @@
-﻿// Read the file path from command line arguments.
+using System.ComponentModel;
+using System.Reflection;
+using System.Text;
 using OrgPlusChartReader;
 
-var filePath = args.Length > 0 ? args[0] : throw new ArgumentException("Please provide the path to the organization chart file.");
-using var stream = File.OpenRead(filePath);
-
-var chart = new OrganizationChart(stream);
-
-foreach (var record in chart.Records)
+if (args.Length == 0)
 {
-    Console.WriteLine($"{record.Id}: {GetRecordDetails((OrganizationChartRecordId)record.Id, record.Bytes)}");
+    Console.Error.WriteLine("Usage: OrgPlusChartDumper <path-to-chart.opx>");
+    return 1;
 }
 
-static string GetRecordDetails(OrganizationChartRecordId id, byte[] data)
+try
 {
-    using var stream = new MemoryStream(data);
-    using var reader = new BinaryReader(stream);
-    object obj = id switch
+    using var stream = File.OpenRead(args[0]);
+    var chart = new OrganizationChart(stream);
+
+    foreach (var record in chart.Records)
     {
-        OrganizationChartRecordId.BoxTextPartCount => new BoxTextPartCountRecord(id, reader),
-        OrganizationChartRecordId.BoxTextPartIndex => new BoxTextPartIndexRecord(id, reader),
-        OrganizationChartRecordId.BoxTextPartType => new BoxTextPartTypeRecord(id, reader),
-        OrganizationChartRecordId.BodyInfo => new BodyInfoRecord(id, reader),
-        OrganizationChartRecordId.FontName => new FontNameRecord(id, reader),
-        OrganizationChartRecordId.TitlePartIndex => new TitlePartIndexRecord(id, reader),
-        OrganizationChartRecordId.Level => new LevelRecord(id, reader),
-        OrganizationChartRecordId.BoxIndex => new BoxIndexRecord(id, reader),
-        OrganizationChartRecordId.Border => new BorderRecord(id, reader),
-        OrganizationChartRecordId.Connector => new ConnectorRecord(id, reader),
-        OrganizationChartRecordId.Line => new LineRecord(id, reader),
-        OrganizationChartRecordId.Text => new TextRecord(id, reader),
-        OrganizationChartRecordId.Shape => new ShapeRecord(id, reader),
-        OrganizationChartRecordId.ShapeColor => new ShapeColorRecord(id, reader),
-        OrganizationChartRecordId.Selected => new SelectedRecord(id, reader),
-        OrganizationChartRecordId.Shadow => new ShadowRecord(id, reader),
-        OrganizationChartRecordId.FontIndex => new FontIndexRecord(id, reader),
-        OrganizationChartRecordId.Footer => new FooterRecord(id, reader),
-        OrganizationChartRecordId.GlobalInfo => new GlobalInfoRecord(id, reader),
-        _ => throw new NotSupportedException($"Record ID {id} is not supported."),
-    };
-    return obj.ToString()!;
+        Dump(record, 0);
+    }
+
+    if (chart.SlackBytes.Length != 0)
+    {
+        Console.WriteLine($"Slack bytes before footer: {chart.SlackBytes.Length}");
+    }
+
+    return 0;
+}
+catch (Exception e) when (e is InvalidDataException or IOException or UnauthorizedAccessException)
+{
+    Console.Error.WriteLine($"Could not read '{args[0]}': {e.Message}");
+    return 1;
+}
+
+static void Dump(OrganizationChartRecord record, int indent)
+{
+    string padding = new(' ', indent * 2);
+    if (record is OrganizationChartSubstream substream)
+    {
+        Console.WriteLine($"{padding}{record.Id} {{");
+        foreach (var child in substream.Records)
+        {
+            Dump(child, indent + 1);
+        }
+
+        Console.WriteLine($"{padding}}}");
+        return;
+    }
+
+    Console.WriteLine($"{padding}{record.Id}: {Describe(record)}");
+}
+
+// Records are plain property bags, so describe them by reflection.
+static string Describe(OrganizationChartRecord record)
+{
+    var builder = new StringBuilder();
+    foreach (var property in record.GetType().GetProperties(BindingFlags.Public | BindingFlags.Instance))
+    {
+        if (property.DeclaringType == typeof(OrganizationChartRecord))
+        {
+            continue;
+        }
+
+        object? value = property.GetValue(record);
+        var converter = property.GetCustomAttribute<TypeConverterAttribute>();
+        string text = converter != null && value != null
+            ? TypeDescriptor.GetProperties(record)[property.Name]!.Converter.ConvertToString(value)!
+            : value?.ToString() ?? "null";
+
+        if (builder.Length != 0)
+        {
+            builder.Append(", ");
+        }
+
+        builder.Append($"{property.Name}={text}");
+    }
+
+    return builder.Length != 0 ? builder.ToString() : Convert.ToHexString(record.Bytes);
 }

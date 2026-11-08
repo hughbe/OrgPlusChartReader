@@ -7,7 +7,7 @@ public class BoxIndexRecord : OrganizationChartRecord
     [TypeConverter(typeof(HexTypeConverter))]
     public ushort Index { get; set; }
    
-    public BoxIndexRecord(OrganizationChartRecordId id, BinaryReader reader) : base(id, reader)
+    internal BoxIndexRecord(OrganizationChartRecordId id, byte[] bytes) : base(id, bytes)
     {
         Index = ReadUInt16(0);
     }

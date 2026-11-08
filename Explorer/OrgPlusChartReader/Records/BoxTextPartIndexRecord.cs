@@ -4,7 +4,7 @@ public class BoxTextPartIndexRecord : OrganizationChartRecord
 {
     public BoxTextPartIndex Index { get; set; }
 
-    public BoxTextPartIndexRecord(OrganizationChartRecordId id, BinaryReader reader) : base(id, reader)
+    internal BoxTextPartIndexRecord(OrganizationChartRecordId id, byte[] bytes) : base(id, bytes)
     {
         Index = (BoxTextPartIndex)ReadUInt16(0);
     }
