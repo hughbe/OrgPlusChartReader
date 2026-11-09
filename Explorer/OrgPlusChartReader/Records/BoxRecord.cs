@@ -12,16 +12,16 @@ public class BoxRecord : OrganizationChartRecord
 
     public BoxType Type { get; set; }
 
-    /// <summary>Box flag 0x04.</summary>
+    /// <summary>Box flag 0x04: the flag set by the program's show/hide position command.</summary>
     public bool Flag0x04 { get; set; }
 
     /// <summary>Box flag 0x10.</summary>
     public bool Flag0x10 { get; set; }
 
-    /// <summary>Box flag 0x01 (set on every box with text in the samples).</summary>
+    /// <summary>Box flag 0x01: managed by the show/hide branch command; set on every visible box in the samples.</summary>
     public bool Flag0x01 { get; set; }
 
-    /// <summary>Box flag 0x02 (set on every box with text in the samples).</summary>
+    /// <summary>Box flag 0x02: managed by the show/hide branch command; set on every visible box in the samples.</summary>
     public bool Flag0x02 { get; set; }
 
     [TypeConverter(typeof(HexTypeConverter))]

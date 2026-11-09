@@ -1,4 +1,4 @@
-﻿using System.ComponentModel;
+using System.ComponentModel;
 
 namespace OrgPlusChartReader;
 
@@ -15,9 +15,8 @@ public class ConnectorRecord : OrganizationChartRecord
     /// <summary>The id (<see cref="GroupRecord.GroupId"/>) of the group that contains the start box.</summary>
     public ushort FromGroupId { get; set; }
 
-    /// <summary>Probably the side of the start box the connector is attached to (3 or 4 in the samples).</summary>
-    [TypeConverter(typeof(HexTypeConverter))]
-    public ushort FromAnchor { get; set; }
+    /// <summary>The edge of the start box the connector leaves from.</summary>
+    public Anchor FromAnchor { get; set; }
 
     /// <summary>The one-based index of the box the connector ends at.</summary>
     public ushort ToBoxIndex { get; set; }
@@ -25,9 +24,8 @@ public class ConnectorRecord : OrganizationChartRecord
     /// <summary>The id (<see cref="GroupRecord.GroupId"/>) of the group that contains the end box.</summary>
     public ushort ToGroupId { get; set; }
 
-    /// <summary>Probably the side of the end box the connector is attached to (3 or 4 in the samples).</summary>
-    [TypeConverter(typeof(HexTypeConverter))]
-    public ushort ToAnchor { get; set; }
+    /// <summary>The edge of the end box the connector arrives at.</summary>
+    public Anchor ToAnchor { get; set; }
 
     /// <summary>Three distances in view units, probably the lengths of the connector's elbow segments.</summary>
     public uint Distance1 { get; set; }
@@ -51,7 +49,7 @@ public class ConnectorRecord : OrganizationChartRecord
         FromGroupId = ReadUInt16(offset);
         offset += 2;
 
-        FromAnchor = ReadUInt16(offset);
+        FromAnchor = (Anchor)ReadUInt16(offset);
         offset += 2;
 
         ToBoxIndex = ReadUInt16(offset);
@@ -60,7 +58,7 @@ public class ConnectorRecord : OrganizationChartRecord
         ToGroupId = ReadUInt16(offset);
         offset += 2;
 
-        ToAnchor = ReadUInt16(offset);
+        ToAnchor = (Anchor)ReadUInt16(offset);
         offset += 2;
 
         Distance1 = ReadUInt32(offset);
@@ -70,5 +68,18 @@ public class ConnectorRecord : OrganizationChartRecord
         offset += 4;
 
         Distance3 = ReadUInt32(offset);
+    }
+
+    /// <summary>
+    /// A box edge, in the order of a Windows RECT. The program draws the connector from the end with the
+    /// higher-priority anchor: top, bottom, left, right, then any.
+    /// </summary>
+    public enum Anchor : ushort
+    {
+        Any = 0,
+        Left = 1,
+        Top = 2,
+        Right = 3,
+        Bottom = 4,
     }
 }

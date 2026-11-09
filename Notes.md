@@ -323,7 +323,7 @@ Readers should start from the canvas defaults and apply per-object records over 
 | `0x0056` | Line | 14 | `4003`, `400C`, `4012`, `400E` | |
 | `0x0060` | Text | var | many | |
 | `0x0061` | TextStyle | 8 | `4010` | |
-| `0x0070` | Field extra | 8 | `4008` | program only |
+| `0x0070` | NumericValue | 8 | `4008` | program only |
 | `0x0071` | NumberFormat | 18 | `4008` | program only |
 | `0x0080` | PictureSize | 40 | `4008`, `400E` | program only |
 | `0x0081` | BitmapHeader | var | `4008`, `400E` | program only |
@@ -334,7 +334,7 @@ Readers should start from the canvas defaults and apply per-object records over 
 | `0x0087` | ❓ | 2 | `4007` | program only |
 | `0x0088` | Selected | 2 | `4007`, `400C`, `4012`, `400E` | |
 | `0x0089` | DevMode | var | `4003` | |
-| `0x0090` | ❓ | var | `4003` | program only |
+| `0x0090` | ColorPalette | var | `4003` | program only |
 | `0x0091` | ❓ | 6 | `4003` | program only |
 | `0x0092` | Shadow | 16 | `4003`, `4007`, `400E` | |
 | `0x0093` | LineShadow | 16 | `4003`, `4006`, `4012`, `400E` | |
@@ -347,6 +347,7 @@ Readers should start from the canvas defaults and apply per-object records over 
 | `0x009A` | ❓ | 4 | `4007` | program only |
 | `0x009B` | ❓ | 10 | `4003` | |
 | `0x009C` | FontInfo | 4 | `400B` | |
+| `0x0073` | ❓ | var | boxes | read only: the box-text reader handles it exactly like `0x0053` Border, but the program never writes it |
 | `0x0D0A` | Banner | var | top | |
 | `0x0FFC` | ❓ | var | `4005`, boxes | read only: the program accepts it but never writes it (§4.3) |
 | `0x0FFD` | GlobalInfo | 34 | `4005` | |
@@ -425,8 +426,8 @@ Each field is a `0x0011` FieldIndex (`u16`, zero-based), a `0x0012` FieldKind (`
 |---|---|---|
 | `0x0071` | 18 | the field's **number format**, always written |
 | `0x0013` | var | the field's **formula**, when the field has flag `0x20` |
-| `0x0099` | 4 | `{cb = 4, the field's flag word}` |
-| `0x0070` | 8 | 8 bytes of field data, written unless the field has flag `0x01` |
+| `0x0099` | 4 | `{cb = 4, the field's flag word}`: bit 0 (`0x01`) = the text isn't a valid number; bit 5 (`0x20`) = the field has a formula |
+| `0x0070` | 8 | ✅ the field's **numeric value** as a little-endian IEEE 754 double, written only when the text parses as a number |
 
 ✅ **`0x0071` number format.** The separators and symbol come from Windows' `[Intl]` settings when the field is saved:
 
@@ -458,9 +459,9 @@ The formula is `@` *function* `(` *scope* `,` `0x01` *field* `)`. The field refe
 | # | Function | # | Scope |
 |---|---|---|---|
 | 0 | `avg` average | 0 | `ame` |
-| 1 | `cnt` count | 1 | `ami` |
-| 2 | `cmp` | 2 | `brn` branch |
-| 3 | `fot` | 3 | `bre` |
+| 1 | `cnt` count of boxes whose value isn't zero | 1 | `ami` |
+| 2 | `cmp` count of all boxes in the scope | 2 | `brn` branch |
+| 3 | `fot` **fraction of total**: this box's value ÷ the sum over the scope | 3 | `bre` |
 | 4 | `max` maximum | 4 | `sib` siblings |
 | 5 | `min` minimum | 5 | `mgr` manager |
 | 6 | `prd` product | 6 | `sub` subordinates |
@@ -469,7 +470,18 @@ The formula is `@` *function* `(` *scope* `,` `0x01` *field* `)`. The field refe
 | 9 | `var` variance | 9 | `lvl` level |
 | | | 10 | `top` |
 
-🟡 The names after the abbreviations are guesses. `bre`/`sui` look like "branch"/"subordinates" variants that include or exclude the box itself, and `ame`/`ami` like "all managers" variants. ❓ `cmp` and `fot` are unknown.
+✅ The function meanings come from the program's evaluator. It accumulates over each box in the scope, then finishes the result:
+- `cnt` only counts boxes whose value isn't zero; `cmp` counts every box that passes the program's "is a box" test.
+- `fot` divides the box's own value by the scope's total. A zero total gives 0, or 1e300 when the box's own value isn't zero.
+- `std` and `var` keep a sum of squares.
+
+🟡 The scope names after the abbreviations are guesses, supported by how each scope's walker behaves:
+- `brn`, `bre`, `sub` and `sui` walk recursively, so they cover a subtree.
+- `ame`, `ami` and `mgr` first move to the box's manager.
+- `ami` and `sui` each make one extra call that `ame` and `sub` don't, so the trailing `i`/`e` plausibly mean inclusive/exclusive (of the starting box).
+- `sib`, `all`, `lvl` and `top` each have their own walker. The Microsoft build carries Org Plus's calculation code but **no user interface text for it**: the string resources its formula code would load don't exist, so the names can't be recovered from strings.
+
+🟡 The three predefined codes are used for three (function, scope) pairs when the field number matches a value the caller passes in (probably when the formula refers to the field itself): `@var(brn,…)` → 2, `@cnt(brn,…)` → 3, `@std(ami,…)` → 4. Offset 4 then holds the field number.
 
 #### `0x0FFD` GlobalInfo (34 bytes)
 
@@ -519,7 +531,7 @@ GLOBALINFO must come before the first view, otherwise "The GLOBALINFO section of
 | 12 | u16 | ✅ constant | 2 |
 | 14 | u16 | ✅ character set | 1 = ANSI (all samples), 0 = OEM code page. Other values: "MS Organization Chart does not support the character set used by this file." The 1995 program always writes 1. |
 | 16 | RBG4 | ✅ background colour | |
-| 20 | u32 | ❓ a document value | 22 |
+| 20 | u32 | 🟡 an object id | The program always passes it, with document field `+0xD6`, to lookups in its object table. 22 in every sample. |
 | 24 | u32 | ✅ guide inset 1 | A draggable guide's position, in view units measured in from the page margins. The paint routine draws guide lines at margin + inset on each side. 0 (`.ops`: 144 = 1 inch). |
 | 28 | u32 | ✅ guide inset 2 | A second guide, set by dragging. 0 (`.ops`: 144). |
 | 32 | u16 | 🟡 colour `HH` | `0x00FF` with the default white, otherwise 0 |
@@ -545,8 +557,8 @@ Units per inch = offset 4 × offset 6 / 100. The program always writes `{8, 0, 1
 | `0x0024` | `u16` from a document field | ✅ 🟡 A group id: the program also uses it as the group half of the current-box position. 0 (the root group) in every sample. |
 | `0x0052` | `u16` from a program-wide setting | ✅ 0 in every sample |
 | `0x009B` | ✅ **Fit to pages** when printing: `{cb = 10, enabled, scale, pages across, pages down}`. The print layout makes the chart cover pages-across × pages-down pages, allowing for overlaps, and writes the resulting scale back to offset 4 in thousandths (0 = none). `0a 00 00 00 00 00 01 00 01 00` (off, one page by one page) in every sample. | |
-| `0x0090` | program only; data from a stored object | ❓ |
-| `0x0091` | program only; 6 bytes from two program-wide values, only when a third is set | ❓ |
+| `0x0090` | ✅ program only: the chart's **colour palette**, the colours offered by the Color dialog. `{cb = 4 + 4n, n}` then *n* RBG4 colours. An entry that is still one of the program's 16 standard colours is written from its built-in table with the flag byte set to 1. | |
+| `0x0091` | ✅ program only: `{cb = 6, x, y}`, two measurements. Only written when the chart is saved for **embedding in another document** (OLE): the program then saves to a temporary file. 🟡 The size of the embedded object. | |
 
 #### `0x0022` PageSetup
 
@@ -560,8 +572,8 @@ Units per inch = offset 4 × offset 6 / 100. The program always writes `{8, 0, 1
 | 6 | u16 | ❓ | 0 |
 | 8 | u16 | document flag `0x00040000` | ✅ 0 in the samples |
 | 10 | u16 | document flag `0x00020000` | ✅ 1 in the samples |
-| 12 | u32[4] | ✅ page margins | ✅ Two pairs: offsets 12 and 16 are the margins on one axis, measured from the page's start and end, and offsets 20 and 24 on the other. 🟡 Left, right, top, bottom. 0, 72, or 37/37/27/27 (`TEMPLATE.MSO`). The page-break drawing draws the margin rectangle from these. |
-| 28 | u32 | ❓ a measurement | 0, 7, 14 |
+| 12 | u32[4] | ✅ page margins: left, right, top, bottom | The page-break drawing tests offset 12 against the clip rectangle's left and right edges and offset 20 against its top, and draws the right and bottom margins at page size minus offsets 16 and 24. 0, 72, or 37/37/27/27 (`TEMPLATE.MSO`). |
+| 28 | u32 | 🟡 a reserved page measurement | New charts start at 0 or 14 depending on another page setting, and the page-break drawing adds it to the page margins. 0, 7, 14 in the samples. |
 | 32 | u16 | ✅ paper size | the printer's `dmPaperSize` (1 = Letter) |
 | 34 | u16 | ✅ use the default printer | 1: the chart prints to the default Windows printer, and the reader drops a saved printer name that differs from it. 0: the chart keeps its own printer. 1 in the samples. |
 | 36 | u32 | ✅ chart anchor x | The horizontal centre line of the chart's top box. The program moves objects to (x, y) and subtracts a half-width from x. New charts start at 90; 611–639 in the samples (a side shadow moves it by 2). |
@@ -595,7 +607,11 @@ The opcodes:
 | `06` | – | end of a line |
 | `09` | – | the field just placed has flag `0x01` set |
 
-For example, `04 01 00 06 01 01 06 01 02 06 01 03 06 00` is: marker, field 0, end of line, field 1, end of line, field 2, end of line, field 3, end of line, end. Every sample's templates decode completely with these opcodes. ❓ The two settings, the field flag and the marked lines aren't named.
+For example, `04 01 00 06 01 01 06 01 02 06 01 03 06 00` is: marker, field 0, end of line, field 1, end of line, field 2, end of line, field 3, end of line, end. Every sample's templates decode completely with these opcodes.
+
+✅ The program's parser confirms these opcodes. It also accepts `07` and `08` (with no operand) and ignores them, and allows at most 30 lines. `02` stores its setting on the field entry (1 for operand 1, 2 for operand 0) and also changes the entry's kind to 4; `03` does the same for a second setting.
+
+✅ **The two markers split the lines into three sections**: lines before marker `04`, lines between the markers, and lines from marker `05` onwards. The program's text export uses the first and last sections to find which fields hold each box's name and title. If those sections are empty, as in every sample (marker `04` is on line 0 and there's no `05`), it falls back to matching the field labels "Name" and "Title". The export also counts the fields whose `03` setting is non-zero. ❓ The two settings and the field flag still aren't named.
 
 The `0x400A` section holds every template in use. The canvas-level `0x0023` is the template given to new boxes and is a copy of one in `0x400A`. Every `0x0051` template id appears in `0x400A` (all samples).
 
@@ -658,10 +674,10 @@ Each part is a `0x0026` TitlePartIndex (`u16`), a `0x0060` Text and an optional 
 | 0 | u16 | cb = 36 | ✅ |
 | 2 | u16 | box type | ✅ §5.8 |
 | 4 | u16 | 0 | ✅ |
-| 6 | u16 | box flag `0x04` | ✅ |
+| 6 | u16 | box flag `0x04` | ✅ The flag set by the exported `_PGShowPos` (show or hide a position) on each selected box. 0 in the samples. |
 | 8 | u16 | box flag `0x10` | ✅ |
-| 10 | u16 | box flag `0x01` | ✅ 1 on boxes with text in the samples |
-| 12 | u16 | box flag `0x02` | ✅ 1 on boxes with text in the samples |
+| 10 | u16 | box flag `0x01` | ✅ One of the flags the exported `_PGShowBr` (show or hide a branch) manages. 1 on every visible box in the samples, 0 on the hidden type-4 box. |
+| 12 | u16 | box flag `0x02` | ✅ Also managed by `_PGShowBr`; 1 on every visible box, 0 on the type-4 box. |
 | 14 | u16[3] | 0 | ✅ |
 | 20 | u32 | ❓ a box value | 0 |
 | 24 | u32 | ❓ a box value | 0 |
@@ -671,7 +687,7 @@ Each part is a `0x0026` TitlePartIndex (`u16`), a `0x0060` Text and an optional 
 
 #### `0x0054` BoxLayout
 
-✅ Only written for a box when it differs from the canvas default (§3.4). Its fields come from the group's spacing settings: the exported `_PGSetSpace` copies a spacing structure into exactly the group fields used here. ❓ No spacing dialog survives in the program's resources, so the individual values can't be named.
+✅ Only written for a box when it differs from the canvas default (§3.4). Its fields come from the group's spacing settings: the exported `_PGSetSpace` copies a spacing structure into exactly the group fields used here. ❓ No spacing dialog survives in the program's resources, and `_PGSetSpace` has no callers inside the program (it is only reachable by name from outside), so the individual values can't be named.
 
 | Offset | Type | Source | Samples |
 |---|---|---|---|
@@ -769,10 +785,10 @@ The canvas section's `0x4010` lists all the defaults. Sections on boxes, title p
 | 0 | u16 | cb = 26 | ✅ |
 | 2 | u16 | from: box index | ✅ |
 | 4 | u16 | from: group id | ✅ `0x0041` offset 2 |
-| 6 | u16 | from: anchor side | ✅ A value from 0 to 4 that chooses which edge of the box the line starts from. Before drawing, the program swaps the two ends if needed so that the end with the higher-priority anchor comes first, using the priority 2 > 4 > 1 > 3 > 0 (0 is always swapped, so it seems to mean "any side"). ❓ Which edge each value means isn't decoded; the samples have 3 and 4. |
+| 6 | u16 | from: anchor side | ✅ Which edge of the start box the line leaves from: 0 any, 1 left, 2 top, 3 right, 4 bottom (the order of a Windows `RECT`). Before drawing, the program swaps the two ends so the higher-priority anchor comes first: top > bottom > left > right > any. |
 | 8 | u16 | to: box index | ✅ |
 | 10 | u16 | to: group id | ✅ `0x0041` offset 2 |
-| 12 | u16 | to: anchor side | ✅ As offset 6, for the end box. |
+| 12 | u16 | to: anchor side | ✅ As offset 6, for the end box. In the samples Co6 runs from box 1's right side to box 5's right side. |
 | 14 | u32[3] | ✅ three distances in view units | 18, 18, 18 (1/8 inch). The connector is drawn as an angled (elbow) line by the angled-line tool (`DP_AnglHandler`). ✅ The first distance is how far the line runs out from the start box's edge before its first bend. 🟡 The others place the later bends. When reading a file with `0x0FFC`, the program replaces 0 values with 10. |
 
 ### 4.8 Drawing shapes
@@ -821,11 +837,15 @@ The fields are edges, not a position and size. For example, a horizontal line ha
 |---|---|---|
 | 0 | u16 | picture id |
 | 2 | u16 | length *L* of the data at offset `0x41C` |
-| 4 | u16[6] | six values from the picture's header (🟡 dimensions and format) |
-| 16 | u32 | a header value |
-| 20 | u8[8] | header bytes |
-| 28 | u32[256] | ✅ a 256-colour palette |
-| `0x41C` | u8[*L*] | the first chunk of picture data |
+| 4 | u16 | ✅ number of data chunks |
+| 6 | u16 | 0 |
+| 8 | u16 | ✅ height in pixels |
+| 10 | u16 | ✅ width in pixels |
+| 12 | u16 | ✅ rows per chunk: 20000 / row size, so each chunk holds about 20 000 bytes of whole rows |
+| 14 | u16 | ✅ colour count: 2, 16 or 256 for 1-, 4- and 8-bit images, 0 for 24-bit |
+| 16 | u32 | ✅ total size of the pixel data |
+| 20 | `LOGPALETTE` | ✅ a Windows logical palette: `palVersion` = `0x0300` (u16), the number of entries (u16), then the entries from offset 24 onwards. Each entry is red, green, blue, flags (0), converted from the bitmap's own blue-green-red colour table. |
+| `0x41C` | u8[*L*] | ✅ the first chunk of picture data, which begins with the bitmap's 40-byte `BITMAPINFOHEADER`. All the chunks together form a standard packed bitmap: header, colour table and pixel rows. |
 
 **`0x0082` BitmapData**: a continuation chunk.
 
@@ -862,7 +882,11 @@ The fields are edges, not a position and size. For example, a horizontal line ha
 
 🟡 The repeated sizes fit the "Picture Sizing (in inches)" dialog: an original size and a current size.
 
-✅ The order is fixed. When reading, `0x0081` must be followed by `0x0082`, and `0x0085` must follow its predecessor, otherwise "File has a bad bitmap data format." ❓ The internal format of the picture data, which looks like a device-independent bitmap, isn't decoded.
+✅ The order is fixed. When reading, `0x0081` must be followed by `0x0082`, and `0x0085` must follow its predecessor, otherwise "File has a bad bitmap data format."
+
+✅ **Where pictures come from.** The program imports Windows bitmaps (`.BMP`, checked for the `BM` signature) and Aldus placeable metafiles (`.WMF`, checked for `0x9AC6CDD7`):
+- **Bitmaps** become `0x0081`/`0x0082` pictures. The loader reads the `BITMAPINFOHEADER`, rejects images wider or taller than 32767 pixels, and accepts 1-, 4-, 8- and 24-bit images. The data is the bitmap's pixel rows; each row is `ceil(width × bits / 32) × 4` bytes, as in a Windows device-independent bitmap.
+- **Metafiles** are stored as `0x0085` chunks.
 
 #### `0x0088` Selected
 
@@ -1059,10 +1083,10 @@ It is 0 when there is no shadow. The Boxes > Shadow menu offers 8 presets (comma
 ## 7. Open questions
 
 - What the document, group and box fields behind some values are, for example `0x0FFD` offset 6, `0x0020` offset 20, `0x0022` offset 28, `0x0042` offsets 2–10, the individual `0x0054` spacing values, and the box template's two field settings and marked lines. Answering this means tracing the program's UI code that sets those fields.
-- The internal format of the picture data, `0x0070`, and the meaning of `0x0FFC` beyond marking an older format.
-- How a password is stored in `0x0001` by versions that support passwords.
+- The meaning of `0x0FFC` beyond marking an older format.
+- The less obvious formula scopes (`ame`, `ami`, `bre`, `sui`, `top`).
+- How a password is stored in `0x0001`. ✅ This can't be recovered from this program: its only password code is the single check that refuses the file.
 - What the second default object (`0x0095`, `0x0096`) applies to. 🟡 The chart window's paint routine reads it while drawing the background, so it is probably a frame drawn around the chart or its title.
-- Which box edge each connector anchor value (0–4) means.
 - What FieldKind's special field types and the text flag `0x4000` mean.
 - What the `0x0002` kind flag changes when a file is loaded.
 

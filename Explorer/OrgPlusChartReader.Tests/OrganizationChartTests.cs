@@ -259,6 +259,7 @@ public class OrganizationChartTests
         var chart = new OrganizationChart(ReadSample("Connectors/Co8.opx"));
         var connector = Flatten(chart.Records).OfType<ConnectorRecord>().Single();
         Assert.Equal((4, 1, 2, 0), (connector.FromBoxIndex, connector.FromGroupId, connector.ToBoxIndex, connector.ToGroupId));
+        Assert.Equal((ConnectorRecord.Anchor.Right, ConnectorRecord.Anchor.Bottom), (connector.FromAnchor, connector.ToAnchor));
     }
 
     [Theory]
@@ -437,7 +438,7 @@ public class OrganizationChartTests
         Assert.Equal(0, setup.LayoutDirection);
         Assert.Equal(1, setup.PaperSize);
         Assert.Equal("HP LaserJet 4/4M Plus PS 600,adobeps,LPT2:", setup.Printer);
-        Assert.Equal(72u, setup.Margin1);
+        Assert.Equal(72u, setup.LeftMargin);
 
         var chart = Flatten(new OrganizationChart(ReadSample("Lots.opx")).Records).OfType<PageSetupRecord>().Single();
         Assert.True(chart.UseDefaultPrinter);
@@ -464,6 +465,19 @@ public class OrganizationChartTests
         var format = Assert.IsType<NumberFormatRecord>(OrganizationChartRecord.Create(OrganizationChartRecordId.NumberFormat, bytes));
         Assert.Equal(("$", '.', ',', true, 2, true),
             (format.CurrencySymbol, format.DecimalSeparator, format.ThousandsSeparator, format.CurrencySymbolFirst, (int)format.Digits, format.IsCurrency));
+    }
+
+    [Fact]
+    public void Create_NumericValueAndPalette_AreDecoded()
+    {
+        var value = Assert.IsType<NumericValueRecord>(OrganizationChartRecord.Create(OrganizationChartRecordId.NumericValue, BitConverter.GetBytes(1234.5)));
+        Assert.Equal(1234.5, value.Value);
+
+        // Two colours: yellow (stored R, B, G) as a standard colour, and red.
+        byte[] palette = { 12, 0, 2, 0, 0xFF, 0x00, 0xFF, 1, 0xFF, 0x00, 0x00, 0 };
+        var record = Assert.IsType<ColorPaletteRecord>(OrganizationChartRecord.Create(OrganizationChartRecordId.ColorPalette, palette));
+        Assert.Equal(new[] { Color.FromArgb(255, 255, 0), Color.FromArgb(255, 0, 0) }, record.Colors);
+        Assert.Equal(new[] { true, false }, record.IsStandard);
     }
 
     private static int IndexOf(byte[] data, byte[] pattern)

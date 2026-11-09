@@ -70,6 +70,8 @@ public class BoxTemplateRecord : OrganizationChartRecord
                 case Opcode.MarkerA:
                 case Opcode.MarkerB:
                 case Opcode.EndOfLine:
+                case Opcode.Ignored7:
+                case Opcode.Ignored8:
                 case Opcode.FieldFlag:
                     instructions.Add(new Instruction(opcode, 0));
                     break;
@@ -91,7 +93,7 @@ public class BoxTemplateRecord : OrganizationChartRecord
         /// <summary>Place a field. The operand is the field index, or 0xFF for none.</summary>
         Field = 0x01,
 
-        /// <summary>A two-valued setting for the field: operand 1 or 0.</summary>
+        /// <summary>A two-valued setting for the field: operand 1 or 0. It also changes the field entry's kind.</summary>
         Setting2 = 0x02,
 
         /// <summary>A second two-valued setting for the field: operand 1 or 0.</summary>
@@ -105,6 +107,12 @@ public class BoxTemplateRecord : OrganizationChartRecord
 
         /// <summary>The end of a line.</summary>
         EndOfLine = 0x06,
+
+        /// <summary>Accepted and ignored by the program.</summary>
+        Ignored7 = 0x07,
+
+        /// <summary>Accepted and ignored by the program.</summary>
+        Ignored8 = 0x08,
 
         /// <summary>The field has flag 0x01 set.</summary>
         FieldFlag = 0x09,

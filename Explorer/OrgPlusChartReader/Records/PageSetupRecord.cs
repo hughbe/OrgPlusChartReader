@@ -26,17 +26,17 @@ public class PageSetupRecord : OrganizationChartRecord
     /// <summary>Document flag 0x00020000.</summary>
     public bool Flag10 { get; set; }
 
-    /// <summary>Probably the left margin.</summary>
-    public uint Margin1 { get; set; }
+    /// <summary>The left margin.</summary>
+    public uint LeftMargin { get; set; }
 
-    /// <summary>Probably the right margin.</summary>
-    public uint Margin2 { get; set; }
+    /// <summary>The right margin.</summary>
+    public uint RightMargin { get; set; }
 
-    /// <summary>Probably the top margin.</summary>
-    public uint Margin3 { get; set; }
+    /// <summary>The top margin.</summary>
+    public uint TopMargin { get; set; }
 
-    /// <summary>Probably the bottom margin.</summary>
-    public uint Margin4 { get; set; }
+    /// <summary>The bottom margin.</summary>
+    public uint BottomMargin { get; set; }
 
     [TypeConverter(typeof(HexTypeConverter))]
     public uint Unknown2 { get; set; }
@@ -66,10 +66,10 @@ public class PageSetupRecord : OrganizationChartRecord
         Unknown1 = ReadUInt16(6);
         Flag8 = ReadUInt16(8) != 0;
         Flag10 = ReadUInt16(10) != 0;
-        Margin1 = ReadUInt32(12);
-        Margin2 = ReadUInt32(16);
-        Margin3 = ReadUInt32(20);
-        Margin4 = ReadUInt32(24);
+        LeftMargin = ReadUInt32(12);
+        RightMargin = ReadUInt32(16);
+        TopMargin = ReadUInt32(20);
+        BottomMargin = ReadUInt32(24);
         Unknown2 = ReadUInt32(28);
         PaperSize = ReadUInt16(32);
         UseDefaultPrinter = ReadUInt16(34) != 0;
