@@ -229,6 +229,7 @@ public class OrganizationChartTests
     public void Ctor_SampleFile_BoxTemplatesExist(string path)
     {
         var chart = new OrganizationChart(ReadSample(path));
+        Assert.All(Flatten(chart.Records).OfType<BoxTemplateRecord>(), x => Assert.Empty(x.UnparsedBytes));
         var templateIds = Flatten(chart.Records).OfType<BoxTemplateRecord>().Select(x => x.TemplateId).ToHashSet();
         foreach (var box in Flatten(chart.Records).OfType<BoxRecord>())
         {
@@ -241,8 +242,15 @@ public class OrganizationChartTests
     {
         var chart = new OrganizationChart(ReadSample("Lots.opx"));
         var templates = Flatten(chart.Records).OfType<BoxTemplateRecord>().ToList();
-        Assert.Equal(new byte[] { 0 }, templates.First(x => x.TemplateId == 0x01).Fields.Select(x => x.FieldIndex));
-        Assert.Equal(new byte[] { 0, 1, 2, 3 }, templates.First(x => x.TemplateId == 0x0F).Fields.Select(x => x.FieldIndex));
+        Assert.Equal(new byte[] { 0 }, templates.First(x => x.TemplateId == 0x01).FieldIndices);
+        Assert.Equal(new byte[] { 0, 1, 2, 3 }, templates.First(x => x.TemplateId == 0x0F).FieldIndices);
+
+        // 04 01 00 06 00: marker, field 0, end of line, end.
+        var nameOnly = templates.First(x => x.TemplateId == 0x01);
+        Assert.Equal(
+            new[] { BoxTemplateRecord.Opcode.MarkerA, BoxTemplateRecord.Opcode.Field, BoxTemplateRecord.Opcode.EndOfLine },
+            nameOnly.Instructions.Select(x => x.Opcode));
+        Assert.Empty(nameOnly.UnparsedBytes);
     }
 
     [Fact]

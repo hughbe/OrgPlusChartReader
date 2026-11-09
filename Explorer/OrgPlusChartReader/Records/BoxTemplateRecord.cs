@@ -3,8 +3,8 @@ using System.ComponentModel;
 namespace OrgPlusChartReader;
 
 /// <summary>
-/// A box template (0x0023): the text fields a box shows, in order. Boxes refer to a template by
-/// <see cref="TemplateId"/>.
+/// A box template (0x0023), called a "label setup" by the program: a small byte-code program that lays
+/// out the text fields in a box, line by line. Boxes refer to a template by <see cref="TemplateId"/>.
 /// </summary>
 public class BoxTemplateRecord : OrganizationChartRecord
 {
@@ -15,69 +15,117 @@ public class BoxTemplateRecord : OrganizationChartRecord
     public ushort TemplateId { get; set; }
 
     /// <summary>
-    /// Four values that look like inner margins (8 in charts, 4 in style files).
+    /// Four inner margins of the label setup (8 in charts, 4 in style files).
     /// </summary>
     public IReadOnlyList<ushort> Margins { get; set; }
 
-    [TypeConverter(typeof(HexTypeConverter))]
-    public byte Unknown { get; set; }
+    /// <summary>
+    /// The layout program, in order, ending before the <see cref="Opcode.End"/> instruction.
+    /// </summary>
+    public IReadOnlyList<Instruction> Instructions { get; set; }
 
-    public IReadOnlyList<Entry> Fields { get; set; }
+    /// <summary>
+    /// Bytes after an opcode this reader does not know, if any. Parsing stops at an unknown opcode.
+    /// </summary>
+    public byte[] UnparsedBytes { get; set; }
+
+    /// <summary>
+    /// The field indexes placed by the program, in order.
+    /// </summary>
+    public IEnumerable<byte> FieldIndices =>
+        Instructions.Where(x => x.Opcode == Opcode.Field).Select(x => x.Operand);
 
     internal BoxTemplateRecord(OrganizationChartRecordId id, byte[] bytes) : base(id, bytes)
     {
-        int offset = 0;
-
-        TemplateId = ReadUInt16(offset);
-        offset += 2;
+        TemplateId = ReadUInt16(0);
 
         var margins = new ushort[4];
         for (int i = 0; i < margins.Length; i++)
         {
-            margins[i] = ReadUInt16(offset);
-            offset += 2;
+            margins[i] = ReadUInt16(2 + i * 2);
         }
 
         Margins = margins;
 
-        Unknown = ReadByte(offset);
-        offset += 1;
-
-        // A list of 3-byte entries, terminated by a zero byte.
-        var fields = new List<Entry>();
-        while (ReadByte(offset) != 0)
+        var instructions = new List<Instruction>();
+        int offset = 10;
+        UnparsedBytes = Array.Empty<byte>();
+        while (true)
         {
-            fields.Add(new Entry(ReadByte(offset), ReadByte(offset + 1), ReadByte(offset + 2)));
-            offset += 3;
+            var opcode = (Opcode)ReadByte(offset);
+            offset++;
+            if (opcode == Opcode.End)
+            {
+                break;
+            }
+
+            switch (opcode)
+            {
+                case Opcode.Field:
+                case Opcode.Setting2:
+                case Opcode.Setting3:
+                    instructions.Add(new Instruction(opcode, ReadByte(offset)));
+                    offset++;
+                    break;
+                case Opcode.MarkerA:
+                case Opcode.MarkerB:
+                case Opcode.EndOfLine:
+                case Opcode.FieldFlag:
+                    instructions.Add(new Instruction(opcode, 0));
+                    break;
+                default:
+                    UnparsedBytes = Bytes.Skip(offset - 1).ToArray();
+                    Instructions = instructions;
+                    return;
+            }
         }
 
-        Fields = fields;
+        Instructions = instructions;
     }
 
-    public readonly struct Entry
+    public enum Opcode : byte
     {
-        /// <summary>
-        /// The kind of entry. 1 (a text field) in every sample.
-        /// </summary>
-        public byte Kind { get; }
+        /// <summary>The end of the program.</summary>
+        End = 0x00,
 
-        /// <summary>
-        /// The zero-based index of the text field (see <see cref="BoxTextPartIndexRecord"/>).
-        /// </summary>
-        public byte FieldIndex { get; }
+        /// <summary>Place a field. The operand is the field index, or 0xFF for none.</summary>
+        Field = 0x01,
 
-        /// <summary>
-        /// Unknown. 6 in every sample.
-        /// </summary>
-        public byte Unknown { get; }
+        /// <summary>A two-valued setting for the field: operand 1 or 0.</summary>
+        Setting2 = 0x02,
 
-        public Entry(byte kind, byte fieldIndex, byte unknown)
+        /// <summary>A second two-valued setting for the field: operand 1 or 0.</summary>
+        Setting3 = 0x03,
+
+        /// <summary>Marks the line selected by one of the label setup's line indexes.</summary>
+        MarkerA = 0x04,
+
+        /// <summary>Marks the line selected by the label setup's other line index.</summary>
+        MarkerB = 0x05,
+
+        /// <summary>The end of a line.</summary>
+        EndOfLine = 0x06,
+
+        /// <summary>The field has flag 0x01 set.</summary>
+        FieldFlag = 0x09,
+    }
+
+    public readonly struct Instruction
+    {
+        public Opcode Opcode { get; }
+
+        public byte Operand { get; }
+
+        public Instruction(Opcode opcode, byte operand)
         {
-            Kind = kind;
-            FieldIndex = fieldIndex;
-            Unknown = unknown;
+            Opcode = opcode;
+            Operand = operand;
         }
 
-        public override string ToString() => $"({Kind}, {FieldIndex}, {Unknown})";
+        public override string ToString() => Opcode switch
+        {
+            Opcode.Field or Opcode.Setting2 or Opcode.Setting3 => $"{Opcode}({Operand})",
+            _ => Opcode.ToString(),
+        };
     }
 }

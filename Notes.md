@@ -435,9 +435,9 @@ Each field is a `0x0011` FieldIndex (`u16`, zero-based), a `0x0012` FieldKind (`
 | 0 | u16 | ❓ record version? | 4 (1995 program, `.ops`, `TEMPLATE.MSO`); 8 (`.opx` samples) |
 | 2 | u16 | boolean: document flag `0x02000000` is **clear** | 🟡 A drawing-mode flag. When it is set, or the magnification is below 500, the drawing and selection code switches on a program-wide drawing mode. Picture export forces the flag on. |
 | 4 | u16 | ✅ show page breaks: document flag `0x04000000` is **clear** | When the flag is set, the paint routine skips the page-break and guide lines. Picture export sets it so they don't appear in the exported image. |
-| 6 | u16 | boolean: document flag `0x00100000` | |
-| 8 | u16 | boolean: document flag at `+0x2A` bit 0 | 1 |
-| 10 | u16 | boolean: document flag at `+0x2A` bit 1 | 1 |
+| 6 | u16 | boolean: document flag `0x00100000` | ❓ The program exposes this flag to other applications as property `0x74` of its external property interface; it isn't used anywhere else. |
+| 8 | u16 | ✅ include the chart title in exported pictures | When the chart is copied as a picture, the title parts (other than the placeholder "Chart Title") are included in its bounds. 1 |
+| 10 | u16 | ✅ include drawing objects in exported pictures | Drawing shapes (not connectors) are included in the exported picture's bounds. 1 |
 | 12 | i16 | ✅ magnification | In tenths of a percent. 0 = Actual Size (100%); +N = a fixed zoom of N/10 % (500 = 50%, 2000 = 200%); −N = Size to Window, currently at N/10 %. The −564 in the samples is Size to Window at 56.4%. |
 | 14 | u16 | ✅ default group style | §5.6 |
 | 16 | u16 | ✅ a parameter stored with the default group style | 0 |
@@ -499,7 +499,7 @@ Units per inch = offset 4 × offset 6 / 100. The program always writes `{8, 0, 1
 | `0x0098` | `{4, v}`: v = 1 unless document flag `0x08000000` is set | ✅ |
 | `0x0024` | `u16` from a document field | ✅ 🟡 A group id: the program also uses it as the group half of the current-box position. 0 (the root group) in every sample. |
 | `0x0052` | `u16` from a program-wide setting | ✅ 0 in every sample |
-| `0x009B` | ✅ `{cb = 10, flag, a, b, c}`: offset 2 is document flag `+0x2A` bit 2 (the bit next to GLOBALINFO offsets 8 and 10), and offsets 4, 6 and 8 are three document values. `0a 00 00 00 00 00 01 00 01 00` in every sample. | |
+| `0x009B` | ✅ **Fit to pages** when printing: `{cb = 10, enabled, scale, pages across, pages down}`. The print layout makes the chart cover pages-across × pages-down pages, allowing for overlaps, and writes the resulting scale back to offset 4 in thousandths (0 = none). `0a 00 00 00 00 00 01 00 01 00` (off, one page by one page) in every sample. | |
 | `0x0090` | program only; data from a stored object | ❓ |
 | `0x0091` | program only; 6 bytes from two program-wide values, only when a third is set | ❓ |
 
@@ -529,15 +529,28 @@ Units per inch = offset 4 × offset 6 / 100. The program always writes `{8, 0, 1
 
 #### `0x0023` BoxTemplate
 
-✅ A box template lists which text fields a box shows and in what order. Boxes refer to it by id (`0x0051` offset 32).
+✅ Called a "label setup" by the program. It is a small **byte-code program** that lays out a box's text fields line by line. Boxes refer to it by id (`0x0051` offset 32).
 
 | Offset | Type | Field | |
 |---|---|---|---|
 | 0 | u16 | ✅ template id | A bitmask of the fields shown: `0x01` = Name only, `0x0F` = all four. Id 0 lists every field (the master template). |
-| 2 | u16[4] | 🟡 inner margins | 8, 8, 8, 8 (`.opx`), 4, 4, 4, 4 (`.ops`) |
-| 10 | u8 | ❓ | 4 |
-| 11 | entry[] | ✅ field list | 3 bytes each: `01`, field index, `06` (❓) |
-| … | u8 | terminator | `00` |
+| 2 | u16[4] | ✅ inner margins | four margins of the label setup; 8 in charts, 4 in the style file |
+| 10 | u8[] | ✅ layout program | opcodes, ending with `00` |
+
+The opcodes:
+
+| Opcode | Operand | Meaning |
+|---|---|---|
+| `00` | – | end of the program |
+| `01` | u8 | place a field; the operand is the field index, or `0xFF` for none |
+| `02` | u8 | a two-valued setting of the field just placed (`02 01` or `02 00`) |
+| `03` | u8 | a second two-valued setting of the field (`03 01` or `03 00`) |
+| `04` | – | marks the line selected by one of the label setup's line indexes |
+| `05` | – | marks the line selected by its other line index |
+| `06` | – | end of a line |
+| `09` | – | the field just placed has flag `0x01` set |
+
+For example, `04 01 00 06 01 01 06 01 02 06 01 03 06 00` is: marker, field 0, end of line, field 1, end of line, field 2, end of line, field 3, end of line, end. Every sample's templates decode completely with these opcodes. ❓ The two settings, the field flag and the marked lines aren't named.
 
 The `0x400A` section holds every template in use. The canvas-level `0x0023` is the template given to new boxes and is a copy of one in `0x400A`. Every `0x0051` template id appears in `0x400A` (all samples).
 
@@ -613,7 +626,7 @@ Each part is a `0x0026` TitlePartIndex (`u16`), a `0x0060` Text and an optional 
 
 #### `0x0054` BoxLayout
 
-✅ Only written for a box when it differs from the canvas default (§3.4). Its fields come from the group's spacing settings (the program exports a `_PGSetSpace` function):
+✅ Only written for a box when it differs from the canvas default (§3.4). Its fields come from the group's spacing settings: the exported `_PGSetSpace` copies a spacing structure into exactly the group fields used here. ❓ No spacing dialog survives in the program's resources, so the individual values can't be named.
 
 | Offset | Type | Source | Samples |
 |---|---|---|---|
@@ -711,7 +724,7 @@ The canvas section's `0x4010` lists all the defaults. Sections on boxes, title p
 | 0 | u16 | cb = 26 | ✅ |
 | 2 | u16 | from: box index | ✅ |
 | 4 | u16 | from: group id | ✅ `0x0041` offset 2 |
-| 6 | u16 | from: anchor side | ✅ A value from 0 to 4 that chooses which edge of the box the line starts from. 🟡 The mapping isn't decoded; the samples have 3 and 4. |
+| 6 | u16 | from: anchor side | ✅ A value from 0 to 4 that chooses which edge of the box the line starts from. Before drawing, the program swaps the two ends if needed so that the end with the higher-priority anchor comes first, using the priority 2 > 4 > 1 > 3 > 0 (0 is always swapped, so it seems to mean "any side"). ❓ Which edge each value means isn't decoded; the samples have 3 and 4. |
 | 8 | u16 | to: box index | ✅ |
 | 10 | u16 | to: group id | ✅ `0x0041` offset 2 |
 | 12 | u16 | to: anchor side | ✅ As offset 6, for the end box. |
@@ -953,7 +966,7 @@ It is 0 when there is no shadow. The Boxes > Shadow menu offers 8 presets (comma
 
 ## 7. Open questions
 
-- What the document, group and box fields behind some values are, for example `0x0FFD` offsets 6–10, `0x0020` offset 20, `0x0022` offset 28, `0x009B`, and `0x0042` offsets 2–10. Answering this means tracing the program's UI code that sets those fields.
+- What the document, group and box fields behind some values are, for example `0x0FFD` offset 6, `0x0020` offset 20, `0x0022` offset 28, `0x0042` offsets 2–10, the individual `0x0054` spacing values, and the box template's two field settings and marked lines. Answering this means tracing the program's UI code that sets those fields.
 - The layout of the picture records, the field extras and `0x0FFC`.
 - How a password is stored in `0x0001` by versions that support passwords.
 - What the second default object (`0x0095`, `0x0096`) applies to. 🟡 The chart window's paint routine reads it while drawing the background, so it is probably a frame drawn around the chart or its title.
