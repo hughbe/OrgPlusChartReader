@@ -68,7 +68,7 @@ public class OrganizationChartRecord
             OrganizationChartRecordId.Unknown0x0096 => new ShadowRecord(id, bytes),
             OrganizationChartRecordId.GroupLayout => new GroupLayoutRecord(id, bytes),
             OrganizationChartRecordId.Arrow => new ArrowRecord(id, bytes),
-            OrganizationChartRecordId.ShapeBoxLink => new ShapeBoxLinkRecord(id, bytes),
+            OrganizationChartRecordId.Anchor => new AnchorRecord(id, bytes),
             OrganizationChartRecordId.FontIndex => new FontIndexRecord(id, bytes),
             OrganizationChartRecordId.Text => new TextRecord(id, bytes),
             OrganizationChartRecordId.GlobalInfo => new GlobalInfoRecord(id, bytes),

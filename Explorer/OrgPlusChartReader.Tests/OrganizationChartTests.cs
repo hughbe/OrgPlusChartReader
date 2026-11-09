@@ -386,9 +386,9 @@ public class OrganizationChartTests
             new byte[] { 14, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 3, 0 }));
         Assert.Equal((1, 3), ((int)arrow.End, (int)arrow.ItemIndex));
 
-        var link = Assert.IsType<ShapeBoxLinkRecord>(OrganizationChartRecord.Create(OrganizationChartRecordId.ShapeBoxLink,
-            new byte[] { 22, 0, 1, 0, 5, 0, 1, 0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0, 4, 0, 0, 0 }));
-        Assert.Equal((1, 5, 1u, 4u), ((int)link.GroupIndex, (int)link.BoxIndex, link.Unknown1, link.Unknown4));
+        var anchor = Assert.IsType<AnchorRecord>(OrganizationChartRecord.Create(OrganizationChartRecordId.Anchor,
+            new byte[] { 22, 0, 1, 0, 5, 0, 0xFF, 0xFF, 0xFF, 0xFF, 2, 0, 0, 0, 3, 0, 0, 0, 4, 0, 0, 0 }));
+        Assert.Equal((1, 5, -1, 2, 3, 4), ((int)anchor.GroupId, (int)anchor.BoxIndex, anchor.OffsetX, anchor.OffsetY, anchor.BoxWidth, anchor.BoxHeight));
 
         Assert.IsType<OrganizationChartRecord>(OrganizationChartRecord.Create(OrganizationChartRecordId.PictureSize, new byte[40]));
     }

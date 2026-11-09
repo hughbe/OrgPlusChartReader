@@ -179,10 +179,10 @@ The tree below shows everything the program writes, in order. `[ ]` marks option
    [0x0090]                              program only
     0x0020  PageInfo (view info)
    [0x0091]                              program only
-    0x0098  Flag
+    0x0098  Recalculation
     0x0022  PageSetup
    [0x0089  DevMode]
-    0x009B
+    0x009B  FitToPages
     0x400A  Box templates section
      0x0023*  BoxTemplate
     0x400B  Font table section
@@ -341,11 +341,11 @@ Readers should start from the canvas defaults and apply per-object records over 
 | `0x0094` | Arrow | 14 | `400C`, `4012`, `400E` | program only |
 | `0x0095` | Second default Border | 16 | `4003` | |
 | `0x0096` | Second default Shadow | 16 | `4003` | |
-| `0x0097` | ShapeBoxLink | 22 | `400E` | program only |
-| `0x0098` | Flag | 4 | `4003` | |
+| `0x0097` | Anchor | 22 | `400E` | program only |
+| `0x0098` | Recalculation | 4 | `4003` | |
 | `0x0099` | FieldFlags | 4 | `4008` | program only |
 | `0x009A` | ExcludeFromCalculations | 4 | `4007` | program only |
-| `0x009B` | ❓ | 10 | `4003` | |
+| `0x009B` | FitToPages | 10 | `4003` | |
 | `0x009C` | FontInfo | 4 | `400B` | |
 | `0x0D0A` | Banner | var | top | |
 | `0x0FFC` | ❓ | var | `4005`, boxes | read only: the program accepts it but never writes it (§4.3) |
@@ -420,14 +420,16 @@ Each field is a `0x0011` FieldIndex (`u16`, zero-based), a `0x0012` FieldKind (`
 
 ✅ FieldKind comes from the field object: 4 and 3 for two special internal field types; otherwise 1 when the field's text has text-style property 8 (a name format, §5.5) set (text flag `0x4000`) and 2 when it doesn't. ❓ What the special types mean is unknown.
 
-✅ **Field extras** (program only). Fields aren't just text: Org Plus supports **numeric and currency fields** and **calculated fields** that roll values up the chart. These records describe them. They're written for both field definitions and box text, in this order:
+✅ **Field extras** (program only). Fields aren't just text: Org Plus supports **numeric and currency fields** and **calculated fields** that roll values up the chart. These records describe them. ✅ One routine writes them for both field definitions and box text, but with two switches, so which records appear depends on where the field is:
 
 | Id | Length | Content |
 |---|---|---|
-| `0x0071` | 18 | the field's **number format**, always written |
-| `0x0013` | var | the field's **formula**, when the field has flag `0x20` |
-| `0x0099` | 4 | `{cb = 4, the field's flag word}`: bit 0 (`0x01`) = the text isn't a valid number; bit 5 (`0x20`) = the field has a formula |
-| `0x0070` | 8 | ✅ the field's **numeric value** as a little-endian IEEE 754 double, written only when the text parses as a number |
+| `0x0071` | 18 | the field's **number format**, always written in both places |
+| `0x0013` | var | field definitions only: the field's **formula**, when the field has flag `0x20` |
+| `0x0099` | 4 | box text only: `{cb = 4, the field's flag word}`. Bit 0 (`0x01`) = the text isn't a valid number. Bit 1 (`0x02`) = ✅ the field's amount **counts in calculations** (see below). Bit 5 (`0x20`) = the field has a formula. |
+| `0x0070` | 8 | box text only: ✅ the field's **numeric value** as a little-endian IEEE 754 double, written only when the text parses as a number (flag `0x01` clear) |
+
+✅ **Counting a field in calculations.** When the program reads a box's text field, it copies the field definition's number format and sets flags `0x01` and `0x02` by default; `0x0099` then replaces the whole flag word. The formula accumulator only adds a box's field when its flag `0x02` is set (program property `0x6C`), the box isn't excluded (`0x009A`) and the box isn't hidden. Flag `0x02` is cleared per box and per field by the `IDD_EXCLAMOUNTS` ("exclude amounts") dialog. The help file's own name for these numeric fields is "Amount Fields".
 
 ✅ **`0x0071` number format.** The separators and symbol come from Windows' `[Intl]` settings when the field is saved:
 
@@ -551,11 +553,11 @@ GLOBALINFO must come before the first view, otherwise "The GLOBALINFO section of
 
 Units per inch = offset 4 × offset 6 / 100. The program always writes `{8, 0, 144, 100}`. When reading, it rejects a file where the result is 0 ("No valid VIEWUNITS found").
 
-#### `0x0098` Flag, `0x0024`, `0x0052`, `0x009B`
+#### `0x0098` Recalculation, `0x0024`, `0x0052`, `0x009B` FitToPages
 
 | Id | Content | |
 |---|---|---|
-| `0x0098` | `{4, v}`: v = 1 unless document flag `0x08000000` is set | ✅ |
+| `0x0098` | `{4, v}`: v = 1 unless document flag `0x08000000` is set. ✅ When that flag is set, the program **recalculates every formula** (`0x50763A`, which runs the evaluator for each formula scope) after several kinds of edit (including editing box text) and when the chart is opened. So v = 0 means automatic recalculation is on. Every sample has v = 1. ❓ Nothing in the program's own UI turns the flag on. | ✅ |
 | `0x0024` | `u16` from a document field | ✅ 🟡 A group id: the program also uses it as the group half of the current-box position. 0 (the root group) in every sample. |
 | `0x0052` | `u16` from a program-wide setting | ✅ 0 in every sample |
 | `0x009B` | ✅ **Fit to pages** when printing: `{cb = 10, enabled, scale, pages across, pages down}`. The print layout makes the chart cover pages-across × pages-down pages, allowing for overlaps, and writes the resulting scale back to offset 4 in thousandths (0 = none). `0a 00 00 00 00 00 01 00 01 00` (off, one page by one page) in every sample. | |
@@ -681,8 +683,8 @@ Each part is a `0x0026` TitlePartIndex (`u16`), a `0x0060` Text and an optional 
 | 10 | u16 | box flag `0x01` | ✅ One of the flags the exported `_PGShowBr` (show or hide a branch) manages. 1 on every visible box in the samples, 0 on the hidden type-4 box. |
 | 12 | u16 | box flag `0x02` | ✅ Also managed by `_PGShowBr`; 1 on every visible box, 0 on the type-4 box. |
 | 14 | u16[3] | 0 | ✅ |
-| 20 | u32 | ❓ a box value | 0 |
-| 24 | u32 | ❓ a box value | 0 |
+| 20 | u32 | ✅ a layout parameter of the group's style for this box | 0. The exported `_PGSetBranchID` resets it to 0 for every box of a group whose style changes, together with the group's `0x0042` offsets 2 and 6. 🟡 The layout code adds it to the space used before the box, so it looks like a per-box adjustment. |
+| 24 | u32 | ✅ a second such parameter | 0. Reset in the same place. |
 | 28 | RBG4 | fill colour | ✅ flag byte 1 when `HH = 0xFF`, and then the program's default fill colour is written |
 | 32 | u16 | box template id | ✅ refers to `0x0023`; `0xFFFF` for type-4 boxes |
 | 34 | u16 | fill colour `HH` | ✅ |
@@ -818,16 +820,21 @@ The fields are edges, not a position and size. For example, a horizontal line ha
 | 4 | RBG4 | fill colour | ✅ default `ff ff ff 01`; `RedColor` = `ff 00 00 00` |
 | 8 | u16 | 🟡 fill colour `HH` | `0x00FF` / 0 |
 
-#### `0x0097` ShapeBoxLink (program only)
+#### `0x0097` Anchor (program only)
 
-🟡 Links an object to a box. The drawing-shape writer has a branch that writes it for internal type 7, but type 7 objects are connectors, which that writer otherwise skips. So when it is actually written is unclear.
+✅ Anchors a drawing shape to a box, so the shape moves with the box when the chart is laid out again. It follows the shape's other records and is written for any shape type whose box link is set. The help file lists "anchored objects" among the Org Plus features that Microsoft Organization Chart drops when it opens an Org Plus chart.
+
+✅ The anchor command works on the selected shapes, skipping connectors (internal type 7), and anchors each one to the **current box**. A matching command removes the anchor.
 
 | Offset | Type | Field |
 |---|---|---|
 | 0 | u16 | cb = 22 |
-| 2 | u16 | 🟡 the box's group |
-| 4 | u16 | box index |
-| 6 | u32[4] | four shape values (🟡 offsets from the box) |
+| 2 | u16 | ✅ the box's group id (class `0x65`) |
+| 4 | u16 | ✅ the box's number, as in `0x0050` BoxIndex |
+| 6 | i32 | ✅ x offset of the shape's centre from the box's centre (view units) |
+| 10 | i32 | ✅ y offset of the shape's centre from the box's centre |
+| 14 | i32 | ✅ the box's width when it was anchored: its rectangle minus its left and right inner margins |
+| 18 | i32 | ✅ the box's height when it was anchored, measured the same way |
 
 #### Pictures (program only)
 
@@ -903,7 +910,7 @@ The fields are edges, not a position and size. For example, a horizontal line ha
 - **`0x0087`** marks a box that **shows a picture** instead of its text template. A box's template is a program object identified by (class, id). Class `0x67` is a label setup (`0x0023`), and the exported `_PGShowPic` switches the box to class `0x68`, a picture. The reader sets class `0x68` when it sees this record. The 2-byte payload is leftover data.
 - **`0x009A`** (`{4, 1}`) marks a box that is **excluded from calculations**. It is written when box flag `0x200` is set, and the reader sets the flag from the `u16` at offset 2.
   - ✅ The flag backs the program's box property `0x6D`, which reads as 1 ("included") when the flag is clear. The setter sets the flag when the property is 0.
-  - ✅ The only place that sets the property from the UI is the OK handler of the `IDD_EXCLAMOUNTS` ("exclude amounts") dialog. That dialog also sets field property `0x6C` (field-definition flag `0x02`) for each field in its two field lists, one list for included fields and one for excluded ones.
+  - ✅ The only place that sets the property from the UI is the OK handler of the `IDD_EXCLAMOUNTS` ("exclude amounts") dialog. That dialog also sets property `0x6C` for each field of the box: to 1 for every field in its first list and to 0 for every field in its second. Property `0x6C` is flag `0x02` of the box's own text field, which is saved in that field's `0x0099` (§4.3).
   - ✅ The formula accumulator (`0x502CA8`, §4.3) skips any box whose property `0x6D` is 0, or whose box flag `0x04` (a hidden position) is set, so excluded and hidden boxes don't count towards `@sum`, `@avg` and the other functions.
 
 ---
@@ -1095,6 +1102,7 @@ It is 0 when there is no shadow. The Boxes > Shadow menu offers 8 presets (comma
 - How a password is stored in `0x0001`. ✅ This can't be recovered from this program: its only password code is the single check that refuses the file.
 - What the second default object (`0x0095`, `0x0096`) applies to. 🟡 The chart window's paint routine reads it while drawing the background, so it is probably a frame drawn around the chart or its title.
 - What FieldKind's special field types mean, and the names of the 28 name formats (text-style property 8).
+- What turns on automatic formula recalculation (`0x0098`), and what the two lists in the exclude-amounts dialog are labelled. Neither the `IDD_EXCLAMOUNTS` dialog template nor any UI that sets the recalculation flag survives in this build. The help file (decompressed from `ORGCHART.HLP`) describes Microsoft's cut-down edition and doesn't cover these Org Plus features.
 - What the `0x0002` kind flag changes when a file is loaded.
 
 ## 8. Methodology
