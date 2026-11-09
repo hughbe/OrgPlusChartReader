@@ -53,7 +53,6 @@ public enum OrganizationChartRecordId : ushort
     /// <summary>Marks a box that is excluded from calculated fields (box flag 0x200).</summary>
     ExcludeFromCalculations = 0x009A,
     FitToPages = 0x009B,
-    Unknown0x0160 = 0x0160,
     Copyright = 0x0D0A,
     Unknown0x0FFC = 0x0FFC,
     GlobalInfo = 0x0FFD,
