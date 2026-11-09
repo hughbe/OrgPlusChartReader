@@ -389,7 +389,7 @@ public class OrganizationChartTests
             new byte[] { 22, 0, 1, 0, 5, 0, 1, 0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0, 4, 0, 0, 0 }));
         Assert.Equal((1, 5, 1u, 4u), ((int)link.GroupIndex, (int)link.BoxIndex, link.Unknown1, link.Unknown4));
 
-        Assert.IsType<OrganizationChartRecord>(OrganizationChartRecord.Create(OrganizationChartRecordId.PictureHeader, new byte[40]));
+        Assert.IsType<OrganizationChartRecord>(OrganizationChartRecord.Create(OrganizationChartRecordId.PictureSize, new byte[40]));
     }
 
     [Fact]

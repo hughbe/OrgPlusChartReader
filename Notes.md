@@ -325,8 +325,10 @@ Readers should start from the canvas defaults and apply per-object records over 
 | `0x0061` | TextStyle | 8 | `4010` | |
 | `0x0070` | Field extra | 8 | `4008` | program only |
 | `0x0071` | Field extra | var | `4008` | program only |
-| `0x0080` | Picture placement | 40 | `4008`, `400E` | program only |
-| `0x0081`, `0x0082`, `0x0085` | Picture data | var | `4008`, `400E` | program only |
+| `0x0080` | PictureSize | 40 | `4008`, `400E` | program only |
+| `0x0081` | BitmapHeader | var | `4008`, `400E` | program only |
+| `0x0082` | BitmapData | var | `4008`, `400E` | program only |
+| `0x0085` | PictureData | var | `4008`, `400E` | program only |
 | `0x0083` | Shape | 22 | `400E` | |
 | `0x0084` | Fill | 10 | `400E` | C#: `ShapeColor` |
 | `0x0087` | ❓ | 2 | `4007` | program only |
@@ -768,9 +770,56 @@ The fields are edges, not a position and size. For example, a horizontal line ha
 
 #### Pictures (program only)
 
-✅ A picture is written as `0x0081`, `0x0082` and `0x0085` (variable-length data copied from memory blocks), then `0x0080`, a 40-byte record (cb = `0x28`) holding rectangles and flags. Pictures can appear on picture shapes, on box text fields and on field definitions; the program exports `_PGShowPic`.
+✅ Pictures can appear as picture shapes, on box text fields and on field definitions; the program exports `_PGShowPic`. A picture is a program object of class `0x6A`/`0x6C` (stored as a bitmap with a palette) or another class (stored as plain data chunks). Its data is split into chunks of up to 64 KB, followed by a size record.
 
-✅ The order is fixed. When reading, `0x0081` must be followed by `0x0082`, and `0x0085` must follow its predecessor, otherwise "File has a bad bitmap data format." ❓ The data layout is not decoded.
+**`0x0081` BitmapHeader**
+
+| Offset | Type | Field |
+|---|---|---|
+| 0 | u16 | picture id |
+| 2 | u16 | length *L* of the data at offset `0x41C` |
+| 4 | u16[6] | six values from the picture's header (🟡 dimensions and format) |
+| 16 | u32 | a header value |
+| 20 | u8[8] | header bytes |
+| 28 | u32[256] | ✅ a 256-colour palette |
+| `0x41C` | u8[*L*] | the first chunk of picture data |
+
+**`0x0082` BitmapData**: a continuation chunk.
+
+| Offset | Type | Field |
+|---|---|---|
+| 0 | u16[3] | values from the chunk's header |
+| 6 | u32 | a header value |
+| 10 | u16 | length *L* of the data |
+| 12 | u8[*L*] | data |
+
+**`0x0085` PictureData**: a chunk of a picture that isn't stored as a bitmap.
+
+| Offset | Type | Field |
+|---|---|---|
+| 0 | u16 | picture id + 1 |
+| 2 | u16 | a header value |
+| 4 | u16 | in the first chunk, the number of chunks; otherwise 0 |
+| 6 | u16 | 1 for picture class `0x6D`, otherwise 0 |
+| 8 | u16[4] | values from the chunk's header |
+| 16 | u8[] | data |
+
+**`0x0080` PictureSize** (40 bytes), written after the data:
+
+| Offset | Type | Field |
+|---|---|---|
+| 0 | u16 | cb = 40 |
+| 2 | u32[2] | (width, height) |
+| 10 | u32[2] | (width, height) again |
+| 18 | u32[2] | (0, 0): 🟡 a crop offset |
+| 26 | u32[2] | (width, height) again |
+| 34 | u16 | 1 when a picture field is 0, otherwise 0 |
+| 36 | u16 | a picture value |
+| 38 | u16 | a program-wide default |
+
+🟡 The repeated sizes fit the "Picture Sizing (in inches)" dialog: an original size and a current size.
+
+✅ The order is fixed. When reading, `0x0081` must be followed by `0x0082`, and `0x0085` must follow its predecessor, otherwise "File has a bad bitmap data format." ❓ The internal format of the picture data, which looks like a device-independent bitmap, isn't decoded.
 
 #### `0x0088` Selected
 
@@ -967,7 +1016,7 @@ It is 0 when there is no shadow. The Boxes > Shadow menu offers 8 presets (comma
 ## 7. Open questions
 
 - What the document, group and box fields behind some values are, for example `0x0FFD` offset 6, `0x0020` offset 20, `0x0022` offset 28, `0x0042` offsets 2–10, the individual `0x0054` spacing values, and the box template's two field settings and marked lines. Answering this means tracing the program's UI code that sets those fields.
-- The layout of the picture records, the field extras and `0x0FFC`.
+- The internal format of the picture data, the field extras and `0x0FFC`.
 - How a password is stored in `0x0001` by versions that support passwords.
 - What the second default object (`0x0095`, `0x0096`) applies to. 🟡 The chart window's paint routine reads it while drawing the background, so it is probably a frame drawn around the chart or its title.
 - Which box edge each connector anchor value (0–4) means.
