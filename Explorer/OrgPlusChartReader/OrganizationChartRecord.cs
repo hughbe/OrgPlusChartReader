@@ -63,8 +63,6 @@ public class OrganizationChartRecord
             OrganizationChartRecordId.Selected => new SelectedRecord(id, bytes),
             OrganizationChartRecordId.Shadow => new ShadowRecord(id, bytes),
             OrganizationChartRecordId.LineShadow => new ShadowRecord(id, bytes),
-            // Never written by the 1995 program, but its box-text reader treats it exactly like a border.
-            OrganizationChartRecordId.AlternateBorder => new BorderRecord(id, bytes),
             // The border and shadow of a second default object in the canvas section.
             OrganizationChartRecordId.Unknown0x0095 => new BorderRecord(id, bytes),
             OrganizationChartRecordId.Unknown0x0096 => new ShadowRecord(id, bytes),

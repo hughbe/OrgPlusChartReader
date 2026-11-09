@@ -216,7 +216,7 @@ public class OrganizationChartTests
 
         var layouts = Flatten(chart.Records).OfType<GroupLayoutRecord>().ToList();
         Assert.Equal(new ushort[] { 0, 0, 25 }, layouts.Select(x => x.Style));
-        Assert.All(layouts, x => Assert.Equal(x.Style, x.StyleCopy));
+        Assert.All(layouts, x => Assert.Equal(x.Style, x.AssistantStyle));
         Assert.Equal(new ushort[] { 3, 1, 2 }, groups.Select(x => x.Count));
 
         var boxes = Flatten(chart.Records).OfType<BoxRecord>().ToList();

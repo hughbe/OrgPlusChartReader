@@ -241,7 +241,7 @@ Each box in a boxes section is:
 0x0051 Box
 [0x0087]                box field = 0x68 (program only)
 [0x0088 Selected]       box is selected
-[0x009A]                box flag 0x200 (program only)
+[0x009A]                box is excluded from calculations (program only)
 0x0053 Border
 0x0092 Shadow
 [0x0054 BoxLayout]      only when it differs from the default (§3.4)
@@ -249,13 +249,13 @@ Each box in a boxes section is:
   (0x0011 FieldIndex, [pictures], [field extras], 0x0060 Text, [0x4010 TextStyle section])*
 ```
 
-✅ After the boxes, the group's lines section holds the line from the parent to each box. Each entry is only written when it differs from the default, which is why the section is empty in every sample:
+✅ After the boxes, the group's lines section holds the segments of the group's connecting lines (the lines from the manager to its boxes). The program writes one entry per segment, but only when that segment's line differs from the group's default, which is why the section is empty in every sample:
 
 ```
 ([0x0056 Line], [0x0094 Arrow], [0x0094 Arrow], [0x0088 Selected])*
 ```
 
-The line's `ItemIndex` (offset 6) says which box in the group it belongs to.
+✅ The line's `ItemIndex` (offset 6) is the zero-based number of the segment it styles. The number of segments is in the group's `0x0042` offset 10. The program's lines-section writer loops over the group's segment table (20-byte entries) and passes the loop counter as this index.
 
 ### 3.3 Drawing shapes section (`0x400E`)
 
@@ -331,7 +331,7 @@ Readers should start from the canvas defaults and apply per-object records over 
 | `0x0085` | PictureData | var | `4008`, `400E` | program only |
 | `0x0083` | Shape | 22 | `400E` | |
 | `0x0084` | Fill | 10 | `400E` | C#: `ShapeColor` |
-| `0x0087` | ❓ | 2 | `4007` | program only |
+| `0x0087` | PictureBox | 2 | `4007` | program only |
 | `0x0088` | Selected | 2 | `4007`, `400C`, `4012`, `400E` | |
 | `0x0089` | DevMode | var | `4003` | |
 | `0x0090` | ColorPalette | var | `4003` | program only |
@@ -344,12 +344,12 @@ Readers should start from the canvas defaults and apply per-object records over 
 | `0x0097` | ShapeBoxLink | 22 | `400E` | program only |
 | `0x0098` | Flag | 4 | `4003` | |
 | `0x0099` | FieldFlags | 4 | `4008` | program only |
-| `0x009A` | ❓ | 4 | `4007` | program only |
+| `0x009A` | ExcludeFromCalculations | 4 | `4007` | program only |
 | `0x009B` | ❓ | 10 | `4003` | |
 | `0x009C` | FontInfo | 4 | `400B` | |
-| `0x0073` | ❓ | var | boxes | read only: the box-text reader handles it exactly like `0x0053` Border, but the program never writes it |
 | `0x0D0A` | Banner | var | top | |
 | `0x0FFC` | ❓ | var | `4005`, boxes | read only: the program accepts it but never writes it (§4.3) |
+| `0x0023` in `4008` | ❓ | var | box text | read only: inside a box text section the reader treats `0x0023` as a text marker, not a template (§4.3) |
 | `0x0FFD` | GlobalInfo | 34 | `4005` | |
 | `0x0FFF` | Footer | 10 | end of file | §2.3 |
 | `0x1000` | Preserved record | 1864 | `4003` | §3.5 |
@@ -418,7 +418,7 @@ Readers should start from the canvas defaults and apply per-object records over 
 
 Each field is a `0x0011` FieldIndex (`u16`, zero-based), a `0x0012` FieldKind (`u16`, ❓ 1 or 2) and a `0x0060` Text holding the field's label ("Name", "Title", "Comment 1", "Comment 2"). Optional picture records and field extras may follow.
 
-✅ FieldKind comes from the field object: 4 and 3 for two special internal field types; otherwise 1 when the field's text flag `0x4000` is set and 2 when it isn't. That same flag controls whether text-style property 8 is written. 🟡 What the special types and the flag mean is unknown.
+✅ FieldKind comes from the field object: 4 and 3 for two special internal field types; otherwise 1 when the field's text has text-style property 8 (a name format, §5.5) set (text flag `0x4000`) and 2 when it doesn't. ❓ What the special types mean is unknown.
 
 ✅ **Field extras** (program only). Fields aren't just text: Org Plus supports **numeric and currency fields** and **calculated fields** that roll values up the chart. These records describe them. They're written for both field definitions and box text, in this order:
 
@@ -513,6 +513,8 @@ The formula is `@` *function* `(` *scope* `,` `0x01` *field* `)`. The field refe
 - reads offsets 12, 30 and 32 only when it isn't importing.
 
 GLOBALINFO must come before the first view, otherwise "The GLOBALINFO section of this file does not occur before the first view."
+
+✅ **`0x0023` inside a box text section.** The program never writes this, but its box-text reader accepts it. It sets a program-wide flag, then sets the field text's flag `0x400` if the record's second byte is `S` or `s`, and flag `0x800` otherwise. Only the exported `OPACountFn` reads those two text flags. ❓ What the letter means is unknown.
 
 ✅ **`0x0FFC`** is accepted in the global info section, and in the box reader, but never written. In the global info section the program only notes that it was present and ignores its contents. ✅ It marks an **older file format**: when it is present, the connector reader treats zero elbow distances as missing and substitutes 10.
 
@@ -656,12 +658,12 @@ Each part is a `0x0026` TitlePartIndex (`u16`), a `0x0060` Text and an optional 
 | Offset | Type | Field | |
 |---|---|---|---|
 | 0 | u16 | cb = 18 | ✅ |
-| 2 | u32 | ❓ a group value (another is used when the field at offset 16 is −1) | 0 |
-| 6 | u32 | ❓ a group value | 0 |
-| 10 | u16 | ❓ a group value | `0x08`, `0x0D`, `0x11` |
-| 12 | u16 | ✅ layout style | §5.6; 0, 3, 25 in the samples |
-| 14 | u16 | ✅ layout style again | the program writes the same field twice |
-| 16 | u16 | ❓ a group value | 0 |
+| 2 | u32 | ✅ a layout parameter of the group's style (view units) | 0. When offset 16 is −1, the reader stores it in a different group field. |
+| 6 | u32 | ✅ a second layout parameter of the group's style (view units) | 0 |
+| 10 | u16 | ✅ number of connecting-line segments | The number of segments the group's connecting lines are drawn with, which is the number of entries the following `0x400C` can have (§3.2). The program recalculates it when it lays out the chart, so the reader ignores it. `0x08`, `0x0D`, `0x11` in the samples. |
+| 12 | u16 | ✅ layout style of the group | §5.6; 0, 3, 25 in the samples |
+| 14 | u16 | ✅ layout style of the group's assistant part | The reader uses this one for the assistant half of a group (and when the style is 29). The 1995 program writes the same value in both. |
+| 16 | u16 | ✅ a third layout parameter of the group's style | 0. ✅ The exported `_PGSetBranchID` (change a group's style) resets offsets 2 and 6 to 0 whenever the style changes, and sets this one for only two styles, those written as 5 and 18 (§5.6). For those it stores 1 when the group's previous style was one of three particular styles, otherwise 0. 🟡 Those three appear to be the horizontal layouts. |
 
 #### `0x0050` BoxIndex
 
@@ -740,7 +742,7 @@ Each part is a `0x0026` TitlePartIndex (`u16`), a `0x0060` Text and an optional 
 | 0 | u16 | cb = 14 | ✅ |
 | 2 | u16 | line style | ✅ §5.2 |
 | 4 | u16 | thickness (pen width) | ✅ §5.4 |
-| 6 | u16 | item index | ✅ In a lines section, the position of the box in its group; 0 elsewhere. |
+| 6 | u16 | item index | ✅ In a lines section, the zero-based number of the connecting-line segment (§3.2); 0 elsewhere. |
 | 8 | RBG4 | colour | ✅ flag byte always 0 |
 | 12 | u16 | colour `HH` | ✅ 0 or 9 |
 
@@ -897,7 +899,12 @@ The fields are edges, not a position and size. For example, a horizontal line ha
 
 #### `0x0087`, `0x009A` (program only)
 
-✅ Optional box records. `0x0087` (2 bytes of leftover data) is written when a box field equals `0x68`. `0x009A` (`{4, 1}`) is written when box flag `0x200` is set.
+✅ Optional box records:
+- **`0x0087`** marks a box that **shows a picture** instead of its text template. A box's template is a program object identified by (class, id). Class `0x67` is a label setup (`0x0023`), and the exported `_PGShowPic` switches the box to class `0x68`, a picture. The reader sets class `0x68` when it sees this record. The 2-byte payload is leftover data.
+- **`0x009A`** (`{4, 1}`) marks a box that is **excluded from calculations**. It is written when box flag `0x200` is set, and the reader sets the flag from the `u16` at offset 2.
+  - ✅ The flag backs the program's box property `0x6D`, which reads as 1 ("included") when the flag is clear. The setter sets the flag when the property is 0.
+  - ✅ The only place that sets the property from the UI is the OK handler of the `IDD_EXCLAMOUNTS` ("exclude amounts") dialog. That dialog also sets field property `0x6C` (field-definition flag `0x02`) for each field in its two field lists, one list for included fields and one for excluded ones.
+  - ✅ The formula accumulator (`0x502CA8`, §4.3) skips any box whose property `0x6D` is 0, or whose box flag `0x04` (a hidden position) is set, so excluded and hidden boxes don't count towards `@sum`, `@avg` and the other functions.
 
 ---
 
@@ -997,11 +1004,11 @@ It is 0 when there is no shadow. The Boxes > Shadow menu offers 8 presets (comma
 | `0x01` | run | font style | bit 0 bold, bit 1 italic | 0 |
 | `0x02` | run | font | index into the font table. The UI's "Narrow" and "Black" are separate fonts ("Arial Narrow", "Arial Black"). | 0 |
 | `0x03` | run | text colour | RGB4 | black |
-| `0x04` | – | ❓ | always `0x29`; only written in one calling mode | – |
+| `0x04` | – | ❓ | always `0x29`. ✅ Only written for a box's text when the box's group uses layout style 6 and the box has flag `0x04`. | – |
 | `0x05` | paragraph | text flag `0x1000`, which also appears in the number format (`0x0071` offset 2) | 0 or 1 | 0 |
-| `0x06` | paragraph | text flag `0x02` | 0 or 1 | 1 (0 on boxes and shapes) |
+| `0x06` | paragraph | text flag `0x02` | 0 or 1. ✅ Set through `_PGTextAtt` when its request mask has bit `0x40`. | 1 (0 on boxes and shapes) |
 | `0x07` | paragraph | alignment | 0 left, 1 centre, 2 right | **6**: the canvas default stores the raw Windows `SetTextAlign` flags, where 6 is centre and 2 right |
-| `0x08` | paragraph | ❓ a text value, only when text flag `0x4000` is set | | 0 |
+| `0x08` | paragraph | a **name format**, 1–28 | ✅ Set through the exported `_PGTextAtt` (text attributes); text flag `0x4000` means "this value is set". FieldKind (`0x0012`) is 1 when it is set and 2 when it isn't. ✅ When text is entered, the box editor splits it into up to four words and rebuilds it in the order the format picks, using a 28-way switch. Formats 8–14 and 22–28 also convert one word to upper case. The editor ignores values outside 1–28. A box's text takes its format from the field definition when that has flag `0x4000`. 🟡 This fits name orders such as "First Last" and "LAST, First"; the format names aren't in the program's resources. | 0 |
 | `0x09` | run | font size | points | 14 |
 | `0x0A` | run | text shadow colour | RGB4 | 0 (3D Gold: `40 40 40`) |
 | `0x0B` | run | text shadow second colour | RGB4 | white |
@@ -1082,12 +1089,12 @@ It is 0 when there is no shadow. The Boxes > Shadow menu offers 8 presets (comma
 
 ## 7. Open questions
 
-- What the document, group and box fields behind some values are, for example `0x0FFD` offset 6, `0x0020` offset 20, `0x0022` offset 28, `0x0042` offsets 2–10, the individual `0x0054` spacing values, and the box template's two field settings and marked lines. Answering this means tracing the program's UI code that sets those fields.
+- What the document, group and box fields behind some values are, for example `0x0FFD` offset 6, `0x0020` offset 20, `0x0022` offset 28, `0x0042` offsets 2, 6 and 16 for each style, the individual `0x0054` spacing values, and the box template's two field settings and marked lines. Answering this means tracing the program's UI code that sets those fields.
 - The meaning of `0x0FFC` beyond marking an older format.
 - The less obvious formula scopes (`ame`, `ami`, `bre`, `sui`, `top`).
 - How a password is stored in `0x0001`. ✅ This can't be recovered from this program: its only password code is the single check that refuses the file.
 - What the second default object (`0x0095`, `0x0096`) applies to. 🟡 The chart window's paint routine reads it while drawing the background, so it is probably a frame drawn around the chart or its title.
-- What FieldKind's special field types and the text flag `0x4000` mean.
+- What FieldKind's special field types mean, and the names of the 28 name formats (text-style property 8).
 - What the `0x0002` kind flag changes when a file is loaded.
 
 ## 8. Methodology

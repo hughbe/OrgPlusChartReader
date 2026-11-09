@@ -19,8 +19,8 @@ public class LineRecord : OrganizationChartRecord
     public ushort Thickness { get; set; }
 
     /// <summary>
-    /// The item the line belongs to. In a group's lines section this is the zero-based position of the
-    /// box within the group; elsewhere it is 0.
+    /// In a group's lines section, the zero-based number of the connecting-line segment this line styles
+    /// (see <see cref="GroupLayoutRecord.LineSegmentCount"/>); elsewhere it is 0.
     /// </summary>
     public ushort ItemIndex { get; set; }
 
