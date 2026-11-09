@@ -38,6 +38,8 @@ public class OrganizationChartRecord
             OrganizationChartRecordId.Password => new PasswordRecord(id, bytes),
             OrganizationChartRecordId.ViewUnits => new ViewUnitsRecord(id, bytes),
             OrganizationChartRecordId.PageSetup => new PageSetupRecord(id, bytes),
+            OrganizationChartRecordId.NumberFormat => new NumberFormatRecord(id, bytes),
+            OrganizationChartRecordId.Formula => new FormulaRecord(id, bytes),
             OrganizationChartRecordId.Unknown0x0002 => new Unknown0x0002Record(id, bytes),
             OrganizationChartRecordId.Unknown0x0003 => new Unknown0x0003Record(id, bytes),
             OrganizationChartRecordId.BoxTextPartCount => new BoxTextPartCountRecord(id, bytes),

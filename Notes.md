@@ -304,7 +304,7 @@ Readers should start from the canvas defaults and apply per-object records over 
 | `0x0010` | FieldCount | 2 | `4005` | |
 | `0x0011` | FieldIndex | 2 | `4008` | |
 | `0x0012` | FieldKind | 2 | `4008` (global) | |
-| `0x0013` | Field extra | var | `4008` | program only; a string |
+| `0x0013` | Formula | var | `4008` | program only |
 | `0x0020` | PageInfo | 34 | `4003` | C#: `BodyInfo` |
 | `0x0021` | ViewUnits | 8 | `4003` | |
 | `0x0022` | PageSetup | ≥45 | `4003` | |
@@ -324,7 +324,7 @@ Readers should start from the canvas defaults and apply per-object records over 
 | `0x0060` | Text | var | many | |
 | `0x0061` | TextStyle | 8 | `4010` | |
 | `0x0070` | Field extra | 8 | `4008` | program only |
-| `0x0071` | Field extra | var | `4008` | program only |
+| `0x0071` | NumberFormat | 18 | `4008` | program only |
 | `0x0080` | PictureSize | 40 | `4008`, `400E` | program only |
 | `0x0081` | BitmapHeader | var | `4008`, `400E` | program only |
 | `0x0082` | BitmapData | var | `4008`, `400E` | program only |
@@ -343,7 +343,7 @@ Readers should start from the canvas defaults and apply per-object records over 
 | `0x0096` | Second default Shadow | 16 | `4003` | |
 | `0x0097` | ShapeBoxLink | 22 | `400E` | program only |
 | `0x0098` | Flag | 4 | `4003` | |
-| `0x0099` | Field extra | 4 | `4008` | program only |
+| `0x0099` | FieldFlags | 4 | `4008` | program only |
 | `0x009A` | ❓ | 4 | `4007` | program only |
 | `0x009B` | ❓ | 10 | `4003` | |
 | `0x009C` | FontInfo | 4 | `400B` | |
@@ -419,14 +419,57 @@ Each field is a `0x0011` FieldIndex (`u16`, zero-based), a `0x0012` FieldKind (`
 
 ✅ FieldKind comes from the field object: 4 and 3 for two special internal field types; otherwise 1 when the field's text flag `0x4000` is set and 2 when it isn't. That same flag controls whether text-style property 8 is written. 🟡 What the special types and the flag mean is unknown.
 
-✅ **Field extras** (program only) are written for both field definitions and box text, each depending on a field flag. In order:
+✅ **Field extras** (program only). Fields aren't just text: Org Plus supports **numeric and currency fields** and **calculated fields** that roll values up the chart. These records describe them. They're written for both field definitions and box text, in this order:
 
-| Id | Length | Written when |
+| Id | Length | Content |
 |---|---|---|
-| `0x0071` | var | field flag `0x1000` |
-| `0x0013` | var (a string) | field flag `0x20` |
-| `0x0099` | 4 (cb = 4) | |
-| `0x0070` | 8 | field flag `0x01` |
+| `0x0071` | 18 | the field's **number format**, always written |
+| `0x0013` | var | the field's **formula**, when the field has flag `0x20` |
+| `0x0099` | 4 | `{cb = 4, the field's flag word}` |
+| `0x0070` | 8 | 8 bytes of field data, written unless the field has flag `0x01` |
+
+✅ **`0x0071` number format.** The separators and symbol come from Windows' `[Intl]` settings when the field is saved:
+
+| Offset | Type | Field |
+|---|---|---|
+| 0 | u16 | cb = 18 |
+| 2 | u16 | the text's flag `0x1000`, the same flag as text-style property 5 |
+| 4 | char[4] | currency symbol (`sCurrency`), only for currency formats; otherwise empty |
+| 8 | char | decimal separator (`sDecimal`) |
+| 9 | char | thousands separator (`sThousand`) |
+| 10 | u16 | 1 when the currency symbol goes before the amount (`iCurrency` 0 or 2) |
+| 12 | u16 | decimal digits: the format's own value when it has flag `0x10`, otherwise `iCurrDigits` (currency) or `iDigits` |
+| 14 | u16 | a value derived from the text's alignment |
+| 16 | u16 | the format's flags: bit 0 = currency, bit 4 = explicit digit count |
+
+The program's number formatting also reads `OrgPlus.ini` `[AMOUNTEDIT]` settings, such as `DigsPrePosExp`, `UseNegExp` and `OverrideDecDigs`.
+
+✅ **`0x0013` formula.**
+
+| Offset | Type | Field |
+|---|---|---|
+| 0 | u16 | ❓ |
+| 2 | u16 | 0 for a formula string; 2, 3 or 4 for three predefined formulas |
+| 4 | u8 | for a predefined formula, a field number; otherwise `0xFF` |
+| 5 | string | the formula, when offset 2 is 0 |
+
+The formula is `@` *function* `(` *scope* `,` `0x01` *field* `)`. The field reference is the byte `0x01` followed by the field's number as a raw byte. For example, `@sum(sub,` `01 02` `)` sums field 2 over a box's subordinates.
+
+| # | Function | # | Scope |
+|---|---|---|---|
+| 0 | `avg` average | 0 | `ame` |
+| 1 | `cnt` count | 1 | `ami` |
+| 2 | `cmp` | 2 | `brn` branch |
+| 3 | `fot` | 3 | `bre` |
+| 4 | `max` maximum | 4 | `sib` siblings |
+| 5 | `min` minimum | 5 | `mgr` manager |
+| 6 | `prd` product | 6 | `sub` subordinates |
+| 7 | `std` standard deviation | 7 | `sui` |
+| 8 | `sum` sum | 8 | `all` all boxes |
+| 9 | `var` variance | 9 | `lvl` level |
+| | | 10 | `top` |
+
+🟡 The names after the abbreviations are guesses. `bre`/`sui` look like "branch"/"subordinates" variants that include or exclude the box itself, and `ame`/`ami` like "all managers" variants. ❓ `cmp` and `fot` are unknown.
 
 #### `0x0FFD` GlobalInfo (34 bytes)
 
@@ -931,7 +974,7 @@ It is 0 when there is no shadow. The Boxes > Shadow menu offers 8 presets (comma
 | `0x02` | run | font | index into the font table. The UI's "Narrow" and "Black" are separate fonts ("Arial Narrow", "Arial Black"). | 0 |
 | `0x03` | run | text colour | RGB4 | black |
 | `0x04` | – | ❓ | always `0x29`; only written in one calling mode | – |
-| `0x05` | paragraph | text flag `0x1000` | 0 or 1 | 0 |
+| `0x05` | paragraph | text flag `0x1000`, which also appears in the number format (`0x0071` offset 2) | 0 or 1 | 0 |
 | `0x06` | paragraph | text flag `0x02` | 0 or 1 | 1 (0 on boxes and shapes) |
 | `0x07` | paragraph | alignment | 0 left, 1 centre, 2 right | **6**: the canvas default stores the raw Windows `SetTextAlign` flags, where 6 is centre and 2 right |
 | `0x08` | paragraph | ❓ a text value, only when text flag `0x4000` is set | | 0 |
@@ -1016,7 +1059,7 @@ It is 0 when there is no shadow. The Boxes > Shadow menu offers 8 presets (comma
 ## 7. Open questions
 
 - What the document, group and box fields behind some values are, for example `0x0FFD` offset 6, `0x0020` offset 20, `0x0022` offset 28, `0x0042` offsets 2–10, the individual `0x0054` spacing values, and the box template's two field settings and marked lines. Answering this means tracing the program's UI code that sets those fields.
-- The internal format of the picture data, the field extras and `0x0FFC`.
+- The internal format of the picture data, `0x0070`, and the meaning of `0x0FFC` beyond marking an older format.
 - How a password is stored in `0x0001` by versions that support passwords.
 - What the second default object (`0x0095`, `0x0096`) applies to. 🟡 The chart window's paint routine reads it while drawing the background, so it is probably a frame drawn around the chart or its title.
 - Which box edge each connector anchor value (0–4) means.

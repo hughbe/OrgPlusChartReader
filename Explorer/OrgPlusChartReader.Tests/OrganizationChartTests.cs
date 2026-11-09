@@ -444,6 +444,28 @@ public class OrganizationChartTests
         Assert.Equal("", chart.Printer);
     }
 
+    [Fact]
+    public void Create_Formula_IsParsed()
+    {
+        byte[] text = { (byte)'@', (byte)'s', (byte)'u', (byte)'m', (byte)'(', (byte)'s', (byte)'u', (byte)'b', (byte)',', 0x01, 0x02, (byte)')', 0 };
+        byte[] bytes = new byte[] { 0, 0, 0, 0, 0xFF }.Concat(text).ToArray();
+        var formula = Assert.IsType<FormulaRecord>(OrganizationChartRecord.Create(OrganizationChartRecordId.Formula, bytes));
+        Assert.Equal(("sum", "sub", (byte?)2), (formula.Function, formula.Scope, formula.FieldIndex));
+
+        var predefined = Assert.IsType<FormulaRecord>(OrganizationChartRecord.Create(OrganizationChartRecordId.Formula, new byte[] { 0, 0, 3, 0, 1 }));
+        Assert.Equal((3, 1), ((int)predefined.PredefinedCode, (int)predefined.PredefinedField));
+        Assert.Null(predefined.Text);
+    }
+
+    [Fact]
+    public void Create_NumberFormat_IsDecoded()
+    {
+        byte[] bytes = { 18, 0, 0, 0, (byte)'$', 0, 0, 0, (byte)'.', (byte)',', 1, 0, 2, 0, 0, 0, 1, 0 };
+        var format = Assert.IsType<NumberFormatRecord>(OrganizationChartRecord.Create(OrganizationChartRecordId.NumberFormat, bytes));
+        Assert.Equal(("$", '.', ',', true, 2, true),
+            (format.CurrencySymbol, format.DecimalSeparator, format.ThousandsSeparator, format.CurrencySymbolFirst, (int)format.Digits, format.IsCurrency));
+    }
+
     private static int IndexOf(byte[] data, byte[] pattern)
     {
         for (int i = 0; i <= data.Length - pattern.Length; i++)
