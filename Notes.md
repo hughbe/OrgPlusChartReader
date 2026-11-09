@@ -438,12 +438,12 @@ Each field is a `0x0011` FieldIndex (`u16`, zero-based), a `0x0012` FieldKind (`
 | 6 | u16 | boolean: document flag `0x00100000` | |
 | 8 | u16 | boolean: document flag at `+0x2A` bit 0 | 1 |
 | 10 | u16 | boolean: document flag at `+0x2A` bit 1 | 1 |
-| 12 | i16 | 🟡 magnification | The view's zoom; the program writes it negated when a view mode flag is set, probably "Size to Window". 0 or −564 in the samples. |
+| 12 | i16 | ✅ magnification | In tenths of a percent. 0 = Actual Size (100%); +N = a fixed zoom of N/10 % (500 = 50%, 2000 = 200%); −N = Size to Window, currently at N/10 %. The −564 in the samples is Size to Window at 56.4%. |
 | 14 | u16 | ✅ default group style | §5.6 |
 | 16 | u16 | ✅ a parameter stored with the default group style | 0 |
 | 18 | u16 | ✅ default assistant style | Same codes as offset 14. Choosing an assistant style (internal 23–33) on the Styles menu stores it here instead of at offset 14. 25 (`.opx`), 29 (`.ops`). |
-| 20 | i16 | 🟡 selection anchor | One half of a point the program records when a box selection starts; −1 when there is none. −1, 0, 1 in the samples. |
-| 22 | i16 | 🟡 selection anchor | The other half of that point. −1, 0, 2 in the samples. |
+| 20 | i16 | ✅ current box: group id | The group id (`0x0041` offset 2) of the box the cursor is on; −1 when there is none. |
+| 22 | i16 | ✅ current box: position in group | The zero-based position of that box within its group. (0, 0) is the first box of the root group. |
 | 24 | u16 | 🟡 selection kind | 1 exactly when a box is selected (18 of 18 samples) |
 | 26 | u8[4] | leftover data | ✅ never written (§6); "r Bl" in the `.ops` sample |
 | 30 | u16 | ✅ horizontal scroll position | from `GetScrollPos` on the chart window; 0, 133 (`.ops`), 219 (`TEMPLATE.MSO`) |
@@ -497,7 +497,7 @@ Units per inch = offset 4 × offset 6 / 100. The program always writes `{8, 0, 1
 | Id | Content | |
 |---|---|---|
 | `0x0098` | `{4, v}`: v = 1 unless document flag `0x08000000` is set | ✅ |
-| `0x0024` | `u16` from a document field | ✅ 0 in every sample |
+| `0x0024` | `u16` from a document field | ✅ 🟡 A group id: the program also uses it as the group half of the current-box position. 0 (the root group) in every sample. |
 | `0x0052` | `u16` from a program-wide setting | ✅ 0 in every sample |
 | `0x009B` | ✅ `{cb = 10, flag, a, b, c}`: offset 2 is document flag `+0x2A` bit 2 (the bit next to GLOBALINFO offsets 8 and 10), and offsets 4, 6 and 8 are three document values. `0a 00 00 00 00 00 01 00 01 00` in every sample. | |
 | `0x0090` | program only; data from a stored object | ❓ |
@@ -515,12 +515,12 @@ Units per inch = offset 4 × offset 6 / 100. The program always writes `{8, 0, 1
 | 6 | u16 | ❓ | 0 |
 | 8 | u16 | document flag `0x00040000` | ✅ 0 in the samples |
 | 10 | u16 | document flag `0x00020000` | ✅ 1 in the samples |
-| 12 | u32[4] | ✅ page margins | 🟡 left, right, top, bottom. 0, 72, or 37/37/27/27 (`TEMPLATE.MSO`). The page-break and guide drawing measures from these. |
+| 12 | u32[4] | ✅ page margins | ✅ Two pairs: offsets 12 and 16 are the margins on one axis, measured from the page's start and end, and offsets 20 and 24 on the other. 🟡 Left, right, top, bottom. 0, 72, or 37/37/27/27 (`TEMPLATE.MSO`). The page-break drawing draws the margin rectangle from these. |
 | 28 | u32 | ❓ a measurement | 0, 7, 14 |
 | 32 | u16 | ✅ paper size | the printer's `dmPaperSize` (1 = Letter) |
 | 34 | u16 | ✅ use the default printer | 1: the chart prints to the default Windows printer, and the reader drops a saved printer name that differs from it. 0: the chart keeps its own printer. 1 in the samples. |
-| 36 | u32 | 🟡 chart width | 611–639. It grows by 2 when a box gets a side shadow. |
-| 40 | u32 | 🟡 chart height | 41 for one box, 139 for the two-box style file |
+| 36 | u32 | ✅ chart anchor x | The horizontal centre line of the chart's top box. The program moves objects to (x, y) and subtracts a half-width from x. New charts start at 90; 611–639 in the samples (a side shadow moves it by 2). |
+| 40 | u32 | ✅ chart anchor y | The top of the chart. New charts start at 18; 41 and 139 in the samples. |
 | 44 | string | ✅ printer as `device,driver,port` | e.g. `HP LaserJet 4/4M Plus PS 600,adobeps,LPT2:`. Empty (a single NUL) in most samples. When reading, the program compares it with the current Windows printer. |
 
 #### `0x0089` DevMode
@@ -711,11 +711,11 @@ The canvas section's `0x4010` lists all the defaults. Sections on boxes, title p
 | 0 | u16 | cb = 26 | ✅ |
 | 2 | u16 | from: box index | ✅ |
 | 4 | u16 | from: group id | ✅ `0x0041` offset 2 |
-| 6 | u16 | from: anchor side | 🟡 3 or 4 |
+| 6 | u16 | from: anchor side | ✅ A value from 0 to 4 that chooses which edge of the box the line starts from. 🟡 The mapping isn't decoded; the samples have 3 and 4. |
 | 8 | u16 | to: box index | ✅ |
 | 10 | u16 | to: group id | ✅ `0x0041` offset 2 |
-| 12 | u16 | to: anchor side | 🟡 3 or 4 |
-| 14 | u32[3] | ✅ three distances in view units | 18, 18, 18 (1/8 inch). 🟡 The lengths of the connector's elbow segments. When reading a file with `0x0FFC`, the program replaces 0 values with 10. |
+| 12 | u16 | to: anchor side | ✅ As offset 6, for the end box. |
+| 14 | u32[3] | ✅ three distances in view units | 18, 18, 18 (1/8 inch). The connector is drawn as an angled (elbow) line by the angled-line tool (`DP_AnglHandler`). ✅ The first distance is how far the line runs out from the start box's edge before its first bend. 🟡 The others place the later bends. When reading a file with `0x0FFC`, the program replaces 0 values with 10. |
 
 ### 4.8 Drawing shapes
 
@@ -908,7 +908,7 @@ It is 0 when there is no shadow. The Boxes > Shadow menu offers 8 presets (comma
 | 3 | Horizontal line | ✅ |
 | 4 | Vertical line | ✅ |
 | 5 | Free (diagonal) line | ✅ |
-| 6 | 🟡 Picture (image) | program only |
+| 6 | 🟡 Picture (image). It shares its editing code with type 8. | program only |
 | 7 | Aux line (connector). Stored with the drawing objects but written to `0x4012` as `0x0055`, not here. | ✅ |
 | 8 | 🟡 Picture | program only |
 
@@ -957,7 +957,7 @@ It is 0 when there is no shadow. The Boxes > Shadow menu offers 8 presets (comma
 - The layout of the picture records, the field extras and `0x0FFC`.
 - How a password is stored in `0x0001` by versions that support passwords.
 - What the second default object (`0x0095`, `0x0096`) applies to. 🟡 The chart window's paint routine reads it while drawing the background, so it is probably a frame drawn around the chart or its title.
-- The connector's anchor sides (copied from two fields of the connector object).
+- Which box edge each connector anchor value (0–4) means.
 - What FieldKind's special field types and the text flag `0x4000` mean.
 - What the `0x0002` kind flag changes when a file is loaded.
 

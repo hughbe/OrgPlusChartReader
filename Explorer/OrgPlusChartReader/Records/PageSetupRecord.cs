@@ -49,11 +49,11 @@ public class PageSetupRecord : OrganizationChartRecord
     /// </summary>
     public bool UseDefaultPrinter { get; set; }
 
-    /// <summary>Probably the width of the chart.</summary>
-    public uint ChartWidth { get; set; }
+    /// <summary>The horizontal centre line of the chart's top box.</summary>
+    public uint AnchorX { get; set; }
 
-    /// <summary>Probably the height of the chart.</summary>
-    public uint ChartHeight { get; set; }
+    /// <summary>The top of the chart.</summary>
+    public uint AnchorY { get; set; }
 
     /// <summary>The printer as <c>device,driver,port</c>, or empty.</summary>
     public string Printer { get; set; }
@@ -73,8 +73,8 @@ public class PageSetupRecord : OrganizationChartRecord
         Unknown2 = ReadUInt32(28);
         PaperSize = ReadUInt16(32);
         UseDefaultPrinter = ReadUInt16(34) != 0;
-        ChartWidth = ReadUInt32(36);
-        ChartHeight = ReadUInt32(40);
+        AnchorX = ReadUInt32(36);
+        AnchorY = ReadUInt32(40);
         Printer = ReadNullTerminatedString(44, out _);
     }
 

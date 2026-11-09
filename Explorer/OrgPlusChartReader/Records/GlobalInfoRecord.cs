@@ -26,6 +26,10 @@ public class GlobalInfoRecord : OrganizationChartRecord
     public ushort Unknown6 { get; set; }
 
     [TypeConverter(typeof(HexTypeConverter))]
+    /// <summary>
+    /// The zoom in tenths of a percent: 0 is Actual Size, a positive value a fixed zoom, and a negative value
+    /// Size to Window at the absolute value.
+    /// </summary>
     public short Magnification { get; set; }
 
     public GlobalGroupsStyle GroupsStyle { get; set; }
@@ -38,9 +42,11 @@ public class GlobalInfoRecord : OrganizationChartRecord
     /// </summary>
     public ushort DefaultAssistantStyle { get; set; }
 
-    public short Unknown10 { get; set; }
+    /// <summary>The group id of the current box, or -1 when there is none.</summary>
+    public short CurrentBoxGroupId { get; set; }
 
-    public short Unknown11 { get; set; }
+    /// <summary>The zero-based position of the current box within its group, or -1.</summary>
+    public short CurrentBoxPosition { get; set; }
 
     /// <summary>
     /// 1 when a box is selected (its boxes section contains a <see cref="SelectedRecord"/>), otherwise 0.
@@ -78,10 +84,10 @@ public class GlobalInfoRecord : OrganizationChartRecord
         DefaultAssistantStyle = ReadUInt16(offset);
         offset += 2;
 
-        Unknown10 = ReadInt16(offset);
+        CurrentBoxGroupId = ReadInt16(offset);
         offset += 2;
 
-        Unknown11 = ReadInt16(offset);
+        CurrentBoxPosition = ReadInt16(offset);
         offset += 2;
 
         BoxSelected = ReadUInt16(offset);
