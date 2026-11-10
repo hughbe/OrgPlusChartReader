@@ -349,7 +349,7 @@ Readers should start from the canvas defaults and apply per-object records over 
 | `0x009C` | FontInfo | 4 | `400B` | |
 | `0x0D0A` | Banner | var | top | |
 | `0x0FFC` | ❓ | var | `4005`, boxes | read only: the program accepts it but never writes it (§4.3) |
-| `0x0023` in `4008` | ❓ | var | box text | read only: inside a box text section the reader treats `0x0023` as a text marker, not a template (§4.3) |
+| `0x0023` in `4008` | CountMarker | var | box text | read only: an Org Plus Advanced head-count marker, converted on open (§4.3) |
 | `0x0FFD` | GlobalInfo | 34 | `4005` | |
 | `0x0FFF` | Footer | 10 | end of file | §2.3 |
 | `0x1000` | Preserved record | 1864 | `4003` | §3.5 |
@@ -416,9 +416,13 @@ Readers should start from the canvas defaults and apply per-object records over 
 
 #### `0x4008` Field definitions (global)
 
-Each field is a `0x0011` FieldIndex (`u16`, zero-based), a `0x0012` FieldKind (`u16`, ❓ 1 or 2) and a `0x0060` Text holding the field's label ("Name", "Title", "Comment 1", "Comment 2"). Optional picture records and field extras may follow.
+Each field is a `0x0011` FieldIndex (`u16`, zero-based), a `0x0012` FieldKind (`u16`, the label type below) and a `0x0060` Text holding the field's label ("Name", "Title", "Comment 1", "Comment 2"). Optional picture records and field extras may follow.
 
-✅ FieldKind comes from the field object: 4 and 3 for two special internal field types; otherwise 1 when the field's text has text-style property 8 (a name format, §5.5) set (text flag `0x4000`) and 2 when it doesn't. ❓ What the special types mean is unknown.
+✅ FieldKind is the field's **label type**. The program's own error message lists the four types: "You cannot match up labels with different types (Text, Names, Amounts and Pictures)."
+- **1 = Name**: the field has a name format (text-style property 8, §5.9).
+- **2 = Text**: an ordinary text field.
+- **3 = Amount**: field objects of internal type 2, the ones that carry number formats and calculation flags.
+- **4 = Picture** (🟡 by elimination): field objects of internal type 1.
 
 ✅ **Field extras** (program only). Fields aren't just text: Org Plus supports **numeric and currency fields** and **calculated fields** that roll values up the chart. These records describe them. ✅ One routine writes them for both field definitions and box text, but with two switches, so which records appear depends on where the field is:
 
@@ -460,28 +464,30 @@ The formula is `@` *function* `(` *scope* `,` `0x01` *field* `)`. The field refe
 
 | # | Function | # | Scope |
 |---|---|---|---|
-| 0 | `avg` average | 0 | `ame` |
-| 1 | `cnt` count of boxes whose value isn't zero | 1 | `ami` |
-| 2 | `cmp` count of all boxes in the scope | 2 | `brn` branch |
-| 3 | `fot` **fraction of total**: this box's value ÷ the sum over the scope | 3 | `bre` |
-| 4 | `max` maximum | 4 | `sib` siblings |
-| 5 | `min` minimum | 5 | `mgr` manager |
-| 6 | `prd` product | 6 | `sub` subordinates |
-| 7 | `std` standard deviation | 7 | `sui` |
+| 0 | `avg` average | 0 | `ame` all managers above the box |
+| 1 | `cnt` count of boxes whose value isn't zero | 1 | `ami` all managers above the box, and the box itself |
+| 2 | `cmp` count of all boxes in the scope | 2 | `brn` the box's whole branch, including the box |
+| 3 | `fot` **fraction of total**: this box's value ÷ the sum over the scope | 3 | `bre` the box's branch, excluding the box |
+| 4 | `max` maximum | 4 | `sib` the boxes in the box's group, itself included |
+| 5 | `min` minimum | 5 | `mgr` the box's immediate manager |
+| 6 | `prd` product | 6 | `sub` the box's direct subordinates |
+| 7 | `std` standard deviation | 7 | `sui` the direct subordinates and the box itself |
 | 8 | `sum` sum | 8 | `all` all boxes |
-| 9 | `var` variance | 9 | `lvl` level |
-| | | 10 | `top` |
+| 9 | `var` variance | 9 | `lvl` the boxes on the box's level |
+| | | 10 | `top` the top of the chart (the root group's boxes) |
 
 ✅ The function meanings come from the program's evaluator. It accumulates over each box in the scope, then finishes the result:
 - `cnt` only counts boxes whose value isn't zero; `cmp` counts every box that passes the program's "is a box" test.
 - `fot` divides the box's own value by the scope's total. A zero total gives 0, or 1e300 when the box's own value isn't zero.
 - `std` and `var` keep a sum of squares.
 
-🟡 The scope names after the abbreviations are guesses, supported by how each scope's walker behaves:
-- `brn`, `bre`, `sub` and `sui` walk recursively, so they cover a subtree.
-- `ame`, `ami` and `mgr` first move to the box's manager.
-- `ami` and `sui` each make one extra call that `ame` and `sub` don't, so the trailing `i`/`e` plausibly mean inclusive/exclusive (of the starting box).
-- `sib`, `all`, `lvl` and `top` each have their own walker. The Microsoft build carries Org Plus's calculation code but **no user interface text for it**: the string resources its formula code would load don't exist, so the names can't be recovered from strings.
+✅ The scopes come from the recalculation routine (`0x50763A`), which runs one tree walker per scope. The walkers move through the chart with the program's navigation properties: `0x71` is a box's number of subordinates and `0x72` the *n*th one. Each walker carries an accumulator down the tree and works out a box's result before or after adding the box's own value:
+- `mgr` resets the accumulator, adds the box, and passes it to each subordinate, so every box sees only its immediate manager. `ame` never resets, so a box sees every manager above it. `ami` adds the box's own value before working out its result.
+- `sub` adds each direct subordinate, then works out the result. `sui` also adds the box's own value.
+- `brn` and `bre` collect totals from the whole subtree: `brn` adds the box's own value, `bre` doesn't.
+- `sib` resets once per group and adds every box in it. `lvl` collects per level. `all` collects over every box. `top` adds only the root group's boxes, then gives that result to every box.
+
+So a trailing `i` means the box itself is included and `e` that it is excluded. 🟡 The expansions of the abbreviations (all managers, branch, siblings, subordinates and so on) are inferred from this behaviour. The Microsoft build carries Org Plus's calculation code but **no user interface text for it**: the string resources its formula code would load don't exist.
 
 🟡 The three predefined codes are used for three (function, scope) pairs when the field number matches a value the caller passes in (probably when the formula refers to the field itself): `@var(brn,…)` → 2, `@cnt(brn,…)` → 3, `@std(ami,…)` → 4. Offset 4 then holds the field number.
 
@@ -516,7 +522,14 @@ The formula is `@` *function* `(` *scope* `,` `0x01` *field* `)`. The field refe
 
 GLOBALINFO must come before the first view, otherwise "The GLOBALINFO section of this file does not occur before the first view."
 
-✅ **`0x0023` inside a box text section.** The program never writes this, but its box-text reader accepts it. It sets a program-wide flag, then sets the field text's flag `0x400` if the record's second byte is `S` or `s`, and flag `0x800` otherwise. Only the exported `OPACountFn` reads those two text flags. ❓ What the letter means is unknown.
+✅ **`0x0023` inside a box text section.** The program never writes this, but its box-text reader accepts it. It sets a program-wide flag, then sets the field text's flag `0x400` if the record's second byte is `S` or `s`, and flag `0x800` otherwise. Only the exported `OPACountFn` reads those two text flags.
+
+✅ This is an **Org Plus Advanced head-count marker**, and `OPACountFn` ("OPA count") converts it when the chart is opened. When any marker was read, the open routine (`0x498AE4`):
+1. Creates two amount fields, numbered 28 and 29, labelled with the program's strings "CntBrnMgr" and "CntBrnNoMgr".
+2. Gives them the formulas `@cmp(brn, …)` (count every box in the branch, including the box at its head) and `@cmp(bre, …)` (the same without that box).
+3. Runs `OPACountFn` on every box. For each field carrying a marker, it clears the two text flags and clones the box's label setup. In the clone, the field's slot shows field 28, or field 29 for an `S`/`s` marker. The box is then switched to the clone, and boxes with the same template and choice share one clone.
+
+So the marker means "show this box's branch head count here", and `S` means "without the manager". The same routine also clears flag `0x02` (counts in calculations) on the amount fields of any box with box flag `0x800` (`0x0051` offset 14), then clears that box flag.
 
 ✅ **`0x0FFC`** is accepted in the global info section, and in the box reader, but never written. In the global info section the program only notes that it was present and ignores its contents. ✅ It marks an **older file format**: when it is present, the connector reader treats zero elbow distances as missing and substitutes 10.
 
@@ -613,7 +626,7 @@ The opcodes:
 
 For example, `04 01 00 06 01 01 06 01 02 06 01 03 06 00` is: marker, field 0, end of line, field 1, end of line, field 2, end of line, field 3, end of line, end. Every sample's templates decode completely with these opcodes.
 
-✅ The program's parser confirms these opcodes. It also accepts `07` and `08` (with no operand) and ignores them, and allows at most 30 lines. `02` stores its setting on the field entry (1 for operand 1, 2 for operand 0) and also changes the entry's kind to 4; `03` does the same for a second setting.
+✅ The program's parser confirms these opcodes. It also accepts `07` and `08` (with no operand) and ignores them, and allows at most 30 lines. Each field placed becomes a 20-byte entry: kind, `03` setting, `02` setting, field index, flags. `02` stores its setting on the field entry (1 for operand 1, 2 for operand 0) and changes the field entry's kind to 4. `03` stores its setting the same way but changes the kind of the current **line** to 4 instead. `09` sets the entry's flag `0x01`.
 
 ✅ **The two markers split the lines into three sections**: lines before marker `04`, lines between the markers, and lines from marker `05` onwards. The program's text export uses the first and last sections to find which fields hold each box's name and title. If those sections are empty, as in every sample (marker `04` is on line 0 and there's no `05`), it falls back to matching the field labels "Name" and "Title". The export also counts the fields whose `03` setting is non-zero. ❓ The two settings and the field flag still aren't named.
 
@@ -682,7 +695,9 @@ Each part is a `0x0026` TitlePartIndex (`u16`), a `0x0060` Text and an optional 
 | 8 | u16 | box flag `0x10` | ✅ |
 | 10 | u16 | box flag `0x01` | ✅ One of the flags the exported `_PGShowBr` (show or hide a branch) manages. 1 on every visible box in the samples, 0 on the hidden type-4 box. |
 | 12 | u16 | box flag `0x02` | ✅ Also managed by `_PGShowBr`; 1 on every visible box, 0 on the type-4 box. |
-| 14 | u16[3] | 0 | ✅ |
+| 14 | u16 | box flag `0x800` | ✅ The program writes 0, but its reader sets box flag `0x800` from it. When the chart is opened, `OPACountFn` turns that flag into "this box's amounts aren't counted" (it clears field flag `0x02`, §4.3), then clears the box flag. 🟡 A setting written by the full Org Plus. |
+| 16 | u16 | 0 | ✅ Ignored by the reader. |
+| 18 | u16 | box flag `0x200` | ✅ The program writes 0, but its reader sets box flag `0x200` (excluded from calculations, the same flag as `0x009A`) from it. |
 | 20 | u32 | ✅ a layout parameter of the group's style for this box | 0. The exported `_PGSetBranchID` resets it to 0 for every box of a group whose style changes, together with the group's `0x0042` offsets 2 and 6. 🟡 The layout code adds it to the space used before the box, so it looks like a per-box adjustment. |
 | 24 | u32 | ✅ a second such parameter | 0. Reset in the same place. |
 | 28 | RBG4 | fill colour | ✅ flag byte 1 when `HH = 0xFF`, and then the program's default fill colour is written |
@@ -1015,7 +1030,7 @@ It is 0 when there is no shadow. The Boxes > Shadow menu offers 8 presets (comma
 | `0x05` | paragraph | text flag `0x1000`, which also appears in the number format (`0x0071` offset 2) | 0 or 1 | 0 |
 | `0x06` | paragraph | text flag `0x02` | 0 or 1. ✅ Set through `_PGTextAtt` when its request mask has bit `0x40`. | 1 (0 on boxes and shapes) |
 | `0x07` | paragraph | alignment | 0 left, 1 centre, 2 right | **6**: the canvas default stores the raw Windows `SetTextAlign` flags, where 6 is centre and 2 right |
-| `0x08` | paragraph | a **name format**, 1–28 | ✅ Set through the exported `_PGTextAtt` (text attributes); text flag `0x4000` means "this value is set". FieldKind (`0x0012`) is 1 when it is set and 2 when it isn't. ✅ When text is entered, the box editor splits it into up to four parts at spaces, commas and `\` characters, then rearranges them in the editor in the order the format picks, using a 28-way switch. It inserts the program's three separator strings: `,`, a space, and `.` (used when a word is cut down to an initial). Formats come in pairs: format *n* + 7 runs the same code as format *n* and also converts a word to upper case, so 8–14 are 1–7 in upper case and 22–28 are 15–21 in upper case. That leaves 13 distinct rearrangements (1–5, 7 and 15–20). Format 6 (and so 13) leaves the text unchanged, and 21 shares format 7's code. The editor ignores values outside 1–28. A box's text takes its format from the field definition when that has flag `0x4000`. 🟡 This fits name orders such as "First Last" and "LAST, First"; the format names aren't in the program's resources. | 0 |
+| `0x08` | paragraph | a **name format**, 1–28 (§5.9) | ✅ Set through the exported `_PGTextAtt` (text attributes); text flag `0x4000` means "this value is set". A field with a name format is a **Name** field: FieldKind (`0x0012`) is 1 when it is set and 2 when it isn't. A box's text takes its format from the field definition when that has flag `0x4000`. | 0 |
 | `0x09` | run | font size | points | 14 |
 | `0x0A` | run | text shadow colour | RGB4 | 0 (3D Gold: `40 40 40`) |
 | `0x0B` | run | text shadow second colour | RGB4 | white |
@@ -1066,6 +1081,43 @@ It is 0 when there is no shadow. The Boxes > Shadow menu offers 8 presets (comma
 | 1 | co-manager (the group's style is `0x22`) |
 | 0 | normal |
 
+### 5.9 Name formats (text-style property `0x08`)
+
+✅ When a name is typed into a field with a name format, the box editor (`0x444E40`) rewrites it. The steps below come from the editor code; the program has no names for the formats, so the ones given here describe what each produces.
+
+**Splitting the name.** The text before the first comma is split into words at spaces. Words between `\` characters count as one word, so `Mary\Ann` stays together.
+- A trailing word made only of `I` and `V` (II, III, IV) is set aside as a suffix.
+- The **last name** is the final word, together with any particle in front of it. The single-word particles are D', Da, Dal, De, Del, Dela, Delos, Des, Den, Di, Du, La, Le, Los, O', Mc, Mac, St, St., San, Santa, Saint, Van and Von. Some of these (Del, Mac, Santa, Van) only count when the name has three or more words. The two-word particles are "de la", "de los" and "van"/"von" followed by "de", "den" or "der". Letters are compared ignoring case.
+- The **first name** is the first word before the last name, and the **middle** is any words between them.
+- The **suffix** is everything from the comma on, including the comma, or the Roman-numeral word.
+- A name already typed as "Last, First Middle" (one word before the comma) is read that way round.
+
+**Rebuilding it.** Each format lists the parts in its order and appends them after the typed text; the typed text is then deleted. A space goes between parts, but not before one that starts with a comma, such as a suffix with a comma. A format can also:
+- put a comma after one part
+- reduce a part to its first letter followed by `.`
+- reduce a part to an initial only if it starts with a capital letter, dropping it if it doesn't, so lower-case particles in a middle name disappear
+
+Formats 8–14 and 22–28 are 1–7 and 15–21 with the **last name in capitals**.
+
+| Format | Capitals | Parts | "John Quincy Public, Jr." becomes |
+|---|---|---|---|
+| 1 | 8 | First Middle Last Suffix | John Quincy Public, Jr. |
+| 2 | 9 | First, middle initial, Last, Suffix | John Q. Public, Jr. |
+| 3 | 10 | First Last Suffix | John Public, Jr. |
+| 4 | 11 | first initial, middle initial, Last, Suffix | J. Q. Public, Jr. |
+| 5 | 12 | first initial, Last, Suffix | J. Public, Jr. |
+| 6 | 13 | unchanged (13 only capitalises the last name) | John Quincy Public, Jr. |
+| 7 | 14 | Last | Public |
+| 15 | 22 | Last, First Middle Suffix | Public, John Quincy, Jr. |
+| 16 | 23 | Last, First, middle initial, Suffix | Public, John Q., Jr. |
+| 17 | 24 | Last, First Suffix | Public, John, Jr. |
+| 18 | 25 | Last, first initial, middle initial, Suffix | Public, J. Q., Jr. |
+| 19 | 26 | Last, first initial, Suffix | Public, J., Jr. |
+| 20 | 27 | Last Suffix | Public, Jr. |
+| 21 | 28 | Last (the same code as 7) | Public |
+
+🟡 The example outputs were worked out by following the code, not by running the program.
+
 ---
 
 ## 6. Quirks and hazards
@@ -1098,11 +1150,9 @@ It is 0 when there is no shadow. The Boxes > Shadow menu offers 8 presets (comma
 
 - What the document, group and box fields behind some values are, for example `0x0FFD` offset 6, `0x0020` offset 20, `0x0022` offset 28, `0x0042` offsets 2, 6 and 16 for each style, the individual `0x0054` spacing values, and the box template's two field settings and marked lines. Answering this means tracing the program's UI code that sets those fields.
 - The meaning of `0x0FFC` beyond marking an older format.
-- The less obvious formula scopes (`ame`, `ami`, `bre`, `sui`, `top`).
 - How a password is stored in `0x0001`. ✅ This can't be recovered from this program: its only password code is the single check that refuses the file.
 - What the second default object (`0x0095`, `0x0096`) applies to. 🟡 The chart window's paint routine reads it while drawing the background, so it is probably a frame drawn around the chart or its title.
-- What FieldKind's special field types mean, and the names of the 28 name formats (text-style property 8).
-- The labels of the two lists in the exclude-amounts dialog, and what each part of a name format is (first name, last name and so on). The `IDD_EXCLAMOUNTS` dialog template doesn't survive in this build, and the name formats rearrange text through the program's own rich-text editing messages. The help file (decompressed from `ORGCHART.HLP`) describes Microsoft's cut-down edition and doesn't cover these Org Plus features.
+- The labels of the two lists in the exclude-amounts dialog. The `IDD_EXCLAMOUNTS` dialog template doesn't survive in this build. The help file (decompressed from `ORGCHART.HLP`) describes Microsoft's cut-down edition and doesn't cover these Org Plus features.
 - What the `0x0002` kind flag changes when a file is loaded.
 
 ## 8. Methodology

@@ -24,6 +24,18 @@ public class BoxRecord : OrganizationChartRecord
     /// <summary>Box flag 0x02: managed by the show/hide branch command; set on every visible box in the samples.</summary>
     public bool Flag0x02 { get; set; }
 
+    /// <summary>
+    /// Box flag 0x800 (offset 14): when the chart is opened, the box's amount fields stop counting in
+    /// calculations. Written as 0 by Microsoft Organization Chart.
+    /// </summary>
+    public bool AmountsNotCounted { get; set; }
+
+    /// <summary>
+    /// Box flag 0x200 (offset 18): the box is excluded from calculations, as with
+    /// <see cref="OrganizationChartRecordId.ExcludeFromCalculations"/>. Written as 0 by Microsoft Organization Chart.
+    /// </summary>
+    public bool ExcludedFromCalculations { get; set; }
+
     [TypeConverter(typeof(HexTypeConverter))]
     public uint Unknown1 { get; set; }
 
@@ -53,6 +65,8 @@ public class BoxRecord : OrganizationChartRecord
         Flag0x10 = ReadUInt16(8) != 0;
         Flag0x01 = ReadUInt16(10) != 0;
         Flag0x02 = ReadUInt16(12) != 0;
+        AmountsNotCounted = ReadUInt16(14) != 0;
+        ExcludedFromCalculations = ReadUInt16(18) != 0;
         Unknown1 = ReadUInt32(20);
         Unknown2 = ReadUInt32(24);
         FillColor = ReadColor(28);

@@ -7,6 +7,7 @@ public enum OrganizationChartRecordId : ushort
     Unknown0x0003 = 0x0003,
     BoxTextPartCount = 0x0010,
     BoxTextPartIndex = 0x0011,
+    /// <summary>The field's label type: 1 Name, 2 Text, 3 Amount, 4 Picture.</summary>
     BoxTextPartType = 0x0012,
     Formula = 0x0013,
     BodyInfo = 0x0020,
