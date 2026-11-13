@@ -27,7 +27,11 @@ public class ConnectorRecord : OrganizationChartRecord
     /// <summary>The edge of the end box the connector arrives at.</summary>
     public Anchor ToAnchor { get; set; }
 
-    /// <summary>Three distances in view units, probably the lengths of the connector's elbow segments.</summary>
+    /// <summary>
+    /// The offsets, in view units, of the connector's (up to three) movable middle segments. Each is the
+    /// distance of one segment from the edge it is measured from; the first is how far the line runs out
+    /// from the start box before its first bend.
+    /// </summary>
     public uint Distance1 { get; set; }
 
     /// <summary>See <see cref="Distance1"/>.</summary>

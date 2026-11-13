@@ -208,8 +208,8 @@ public class OrganizationChartTests
         var chart = new OrganizationChart(ReadSample("Plus/Level2.opx"));
         var groups = Flatten(chart.Records).OfType<GroupRecord>().ToList();
 
-        Assert.Equal(new short[] { -1, 0, 1 }, groups.Select(x => x.ParentGroupIndex));
-        Assert.Equal(new ushort[] { 0, 1, 4 }, groups.Select(x => x.ParentBoxIndex));
+        Assert.Equal(new short[] { -1, 0, 1 }, groups.Select(x => x.ParentGroupId));
+        Assert.Equal(new ushort[] { 0, 1, 4 }, groups.Select(x => x.ParentBoxNumber));
         Assert.Equal(new ushort[] { 0, 1, 2 }, groups.Select(x => x.GroupId));
         Assert.All(groups, x => Assert.Equal(x.GroupId, x.AssistantPartGroupId));
         Assert.Equal(new ushort[] { 0, 0, 2 }, groups.Select(x => x.AssistantCount));
@@ -222,6 +222,82 @@ public class OrganizationChartTests
         var boxes = Flatten(chart.Records).OfType<BoxRecord>().ToList();
         Assert.Equal(BoxRecord.BoxType.Assistant, boxes[4].Type);
         Assert.Equal(6, Flatten(chart.Records).OfType<BodyInfoRecord>().Single().BoxCount);
+    }
+
+    [Fact]
+    public void Ctor_AssistantGroup_EndsWithSilentPosition()
+    {
+        var chart = new OrganizationChart(ReadSample("Plus/Level2.opx"));
+        var boxes = Flatten(chart.Records).OfType<BoxRecord>().ToList();
+
+        Assert.Equal(BoxRecord.BoxType.SilentPosition, boxes[5].Type);
+        Assert.Equal(0xFFFF, boxes[5].TemplateId);
+        Assert.All(boxes, x => Assert.False(x.IsHidden || x.IsBranchHidden));
+        Assert.Equal((short)0, Flatten(chart.Records).OfType<RootGroupRecord>().Single().GroupId);
+    }
+
+    [Fact]
+    public void Ctor_BodyInfo_HasDefaultNumberFormat()
+    {
+        var chart = new OrganizationChart(ReadSample("Plus/Level2.opx"));
+        var info = Flatten(chart.Records).OfType<BodyInfoRecord>().Single();
+
+        Assert.Equal("$", info.CurrencySymbol);
+        Assert.Equal('.', info.DecimalSeparator);
+        Assert.Equal(',', info.ThousandsSeparator);
+        Assert.True(info.CurrencySymbolFirst);
+        Assert.Equal(2, info.DecimalDigits);
+        Assert.Equal(22u, info.Spacing);
+    }
+
+    [Fact]
+    public void Ctor_BoxLayout_DefaultIsDecoded()
+    {
+        var chart = new OrganizationChart(ReadSample("Plus/Level2.opx"));
+        var layout = Flatten(chart.Records).OfType<BoxLayoutRecord>().First();
+
+        Assert.Equal((180, 36), (layout.BoxWidth, layout.BoxHeight));
+        Assert.Equal(new ushort[] { 22, 22, 22, 14 }, new[] { layout.ParentToLineGap, layout.LineToBoxGap, layout.HorizontalGap, layout.VerticalGap });
+    }
+
+    [Fact]
+    public void Create_PrintTimeCode_DecodesHeadCountCodes()
+    {
+        var withManager = (PrintTimeCodeRecord)OrganizationChartRecord.Create(OrganizationChartRecordId.PrintTimeCode, new byte[] { (byte)'#', 0 });
+        Assert.True(withManager.IsHeadCount);
+        Assert.False(withManager.ExcludesManager);
+
+        var withoutManager = (PrintTimeCodeRecord)OrganizationChartRecord.Create(OrganizationChartRecordId.PrintTimeCode, new byte[] { (byte)'#', (byte)'s', 0 });
+        Assert.True(withoutManager.ExcludesManager);
+
+        var other = (PrintTimeCodeRecord)OrganizationChartRecord.Create(OrganizationChartRecordId.PrintTimeCode, new byte[] { (byte)'D', 0 });
+        Assert.False(other.IsHeadCount);
+    }
+
+    [Fact]
+    public void Ctor_Borders_AreRectangles()
+    {
+        var chart = new OrganizationChart(ReadSample("Plus/Level2.opx"));
+        Assert.All(Flatten(chart.Records).OfType<BorderRecord>(), x => Assert.Equal(BorderRecord.BoxShape.Rectangle, x.Shape));
+    }
+
+    [Fact]
+    public void Ctor_PageSetup_IsCentredHorizontallyOnly()
+    {
+        var chart = new OrganizationChart(ReadSample("Plus/Level2.opx"));
+        var setup = Flatten(chart.Records).OfType<PageSetupRecord>().Single();
+        Assert.True(setup.CenterHorizontally);
+        Assert.False(setup.CenterVertically);
+
+        Assert.Equal(0, Flatten(chart.Records).OfType<GlobalInfoRecord>().Single().ShowBranchMarkers);
+        Assert.All(Flatten(chart.Records).OfType<GroupLayoutRecord>(), x => Assert.Equal(0, x.StemPosition));
+    }
+
+    [Fact]
+    public void Create_PreservedRecordIds_AreAccepted()
+    {
+        Assert.Equal(3, OrganizationChartRecord.Create((OrganizationChartRecordId)0x13E7, new byte[3]).RecordSize);
+        Assert.Throws<InvalidDataException>(() => OrganizationChartRecord.Create((OrganizationChartRecordId)0x13E8, new byte[3]));
     }
 
     [Theory]
@@ -364,8 +440,8 @@ public class OrganizationChartTests
     {
         var canvas = Flatten(new OrganizationChart(ReadSample("Lots.opx")).Records)
             .OfType<OrganizationChartSubstream>().Single(x => x.Id == OrganizationChartRecordId.CanvasSection);
-        Assert.IsType<BorderRecord>(canvas.Records.Single(x => x.Id == OrganizationChartRecordId.Unknown0x0095));
-        Assert.IsType<ShadowRecord>(canvas.Records.Single(x => x.Id == OrganizationChartRecordId.Unknown0x0096));
+        Assert.IsType<BorderRecord>(canvas.Records.Single(x => x.Id == OrganizationChartRecordId.ChartFrameBorder));
+        Assert.IsType<ShadowRecord>(canvas.Records.Single(x => x.Id == OrganizationChartRecordId.ChartFrameShadow));
         Assert.IsType<ShadowRecord>(canvas.Records.Single(x => x.Id == OrganizationChartRecordId.LineShadow));
     }
 

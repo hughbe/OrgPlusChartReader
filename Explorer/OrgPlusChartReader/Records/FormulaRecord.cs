@@ -8,8 +8,8 @@ namespace OrgPlusChartReader;
 /// </summary>
 public class FormulaRecord : OrganizationChartRecord
 {
-    [TypeConverter(typeof(HexTypeConverter))]
-    public ushort Unknown { get; set; }
+    /// <summary>The length of the fixed part of the record (5), which is the offset of the formula text.</summary>
+    public ushort HeaderSize { get; set; }
 
     /// <summary>0 when <see cref="Text"/> holds the formula; 2, 3 or 4 for three predefined formulas.</summary>
     public ushort PredefinedCode { get; set; }
@@ -31,7 +31,7 @@ public class FormulaRecord : OrganizationChartRecord
 
     internal FormulaRecord(OrganizationChartRecordId id, byte[] bytes) : base(id, bytes)
     {
-        Unknown = ReadUInt16(0);
+        HeaderSize = ReadUInt16(0);
         PredefinedCode = ReadUInt16(2);
         PredefinedField = ReadByte(4);
         if (PredefinedCode != 0)

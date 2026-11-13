@@ -20,11 +20,11 @@ public class PageSetupRecord : OrganizationChartRecord
     [TypeConverter(typeof(HexTypeConverter))]
     public ushort Unknown1 { get; set; }
 
-    /// <summary>Document flag 0x00040000.</summary>
-    public bool Flag8 { get; set; }
+    /// <summary>Whether the chart is centred vertically between the top and bottom margins of its pages.</summary>
+    public bool CenterVertically { get; set; }
 
-    /// <summary>Document flag 0x00020000.</summary>
-    public bool Flag10 { get; set; }
+    /// <summary>Whether the chart is centred horizontally between the left and right margins of its pages.</summary>
+    public bool CenterHorizontally { get; set; }
 
     /// <summary>The left margin.</summary>
     public uint LeftMargin { get; set; }
@@ -38,8 +38,11 @@ public class PageSetupRecord : OrganizationChartRecord
     /// <summary>The bottom margin.</summary>
     public uint BottomMargin { get; set; }
 
-    [TypeConverter(typeof(HexTypeConverter))]
-    public uint Unknown2 { get; set; }
+    /// <summary>
+    /// An allowance, in view units, added to the page margins: 14 when the printer reports an
+    /// unprintable strip on both axes, otherwise 0.
+    /// </summary>
+    public uint PrinterEdgeAllowance { get; set; }
 
     /// <summary>The paper size, as a Windows <c>DEVMODE</c> <c>dmPaperSize</c> value (1 = Letter).</summary>
     public ushort PaperSize { get; set; }
@@ -64,13 +67,13 @@ public class PageSetupRecord : OrganizationChartRecord
         LayoutDirection = ReadUInt16(2);
         Orientation = (PageOrientation)ReadUInt16(4);
         Unknown1 = ReadUInt16(6);
-        Flag8 = ReadUInt16(8) != 0;
-        Flag10 = ReadUInt16(10) != 0;
+        CenterVertically = ReadUInt16(8) != 0;
+        CenterHorizontally = ReadUInt16(10) != 0;
         LeftMargin = ReadUInt32(12);
         RightMargin = ReadUInt32(16);
         TopMargin = ReadUInt32(20);
         BottomMargin = ReadUInt32(24);
-        Unknown2 = ReadUInt32(28);
+        PrinterEdgeAllowance = ReadUInt32(28);
         PaperSize = ReadUInt16(32);
         UseDefaultPrinter = ReadUInt16(34) != 0;
         AnchorX = ReadUInt32(36);

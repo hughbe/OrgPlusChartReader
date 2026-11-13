@@ -63,10 +63,13 @@ public class OrganizationChartRecord
             OrganizationChartRecordId.Selected => new SelectedRecord(id, bytes),
             OrganizationChartRecordId.Shadow => new ShadowRecord(id, bytes),
             OrganizationChartRecordId.LineShadow => new ShadowRecord(id, bytes),
-            // The border and shadow of a second default object in the canvas section.
-            OrganizationChartRecordId.Unknown0x0095 => new BorderRecord(id, bytes),
-            OrganizationChartRecordId.Unknown0x0096 => new ShadowRecord(id, bytes),
+            // The border and shadow of the chart frame, drawn around the chart at the page margins.
+            OrganizationChartRecordId.ChartFrameBorder => new BorderRecord(id, bytes),
+            OrganizationChartRecordId.ChartFrameShadow => new ShadowRecord(id, bytes),
             OrganizationChartRecordId.GroupLayout => new GroupLayoutRecord(id, bytes),
+            OrganizationChartRecordId.BoxLayout => new BoxLayoutRecord(id, bytes),
+            OrganizationChartRecordId.RootGroup => new RootGroupRecord(id, bytes),
+            OrganizationChartRecordId.PrintTimeCode => new PrintTimeCodeRecord(id, bytes),
             OrganizationChartRecordId.Arrow => new ArrowRecord(id, bytes),
             OrganizationChartRecordId.Anchor => new AnchorRecord(id, bytes),
             OrganizationChartRecordId.FontIndex => new FontIndexRecord(id, bytes),
@@ -77,6 +80,8 @@ public class OrganizationChartRecord
                 throw new InvalidDataException($"0x{(ushort)id:X4} is a section marker, not a record."),
             // Known IDs that are not yet specialized use the base record.
             _ when Enum.IsDefined(typeof(OrganizationChartRecordId), id) => new OrganizationChartRecord(id, bytes),
+            // Preserved records: Org Plus writes its object n (0 to 999) back as record 0x1000 + n.
+            _ when (ushort)id is >= 0x1000 and <= 0x13E7 => new OrganizationChartRecord(id, bytes),
             _ => throw new InvalidDataException($"Unknown record ID: 0x{(ushort)id:X4}"),
         };
     }

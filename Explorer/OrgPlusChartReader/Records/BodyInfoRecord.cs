@@ -8,24 +8,28 @@ public class BodyInfoRecord : OrganizationChartRecord
     public ushort Size { get; set; }
 
     /// <summary>
-    /// The number of boxes in the chart.
+    /// The number of boxes in the chart. The program ignores it when reading.
     /// </summary>
     public ushort BoxCount { get; set; }
 
-    [TypeConverter(typeof(HexTypeConverter))]
-    public ushort Unknown2 { get; set; }
+    /// <summary>
+    /// The default currency symbol: up to 4 bytes, NUL-terminated. The program writes "$" and leaves the
+    /// bytes after the NUL unset. Offsets 4 to 13 are the chart's default number format, laid out like part
+    /// of <see cref="NumberFormatRecord"/>; the program ignores them when reading.
+    /// </summary>
+    public string CurrencySymbol { get; set; }
 
-    [TypeConverter(typeof(HexTypeConverter))]
-    public ushort Unknown3 { get; set; }
+    /// <summary>The default decimal separator ('.').</summary>
+    public char DecimalSeparator { get; set; }
 
-    [TypeConverter(typeof(HexTypeConverter))]
-    public ushort Unknown4 { get; set; }
+    /// <summary>The default thousands separator (',').</summary>
+    public char ThousandsSeparator { get; set; }
 
-    [TypeConverter(typeof(HexTypeConverter))]
-    public ushort Unknown5 { get; set; }
+    /// <summary>Whether the currency symbol goes before the amount by default (always true).</summary>
+    public bool CurrencySymbolFirst { get; set; }
 
-    [TypeConverter(typeof(HexTypeConverter))]
-    public ushort Unknown6 { get; set; }
+    /// <summary>The default number of decimal digits (always 2).</summary>
+    public ushort DecimalDigits { get; set; }
 
     /// <summary>
     /// The character set of the file's text. Other values make the program refuse the file.
@@ -34,8 +38,11 @@ public class BodyInfoRecord : OrganizationChartRecord
 
     public Color BackgroundColor { get; set; }
 
-    [TypeConverter(typeof(HexTypeConverter))]
-    public uint Unknown8 { get; set; }
+    /// <summary>
+    /// A chart-wide spacing measurement in view units (22 in the samples): the chart's copy of one of the
+    /// group spacing values. See <see cref="BoxLayoutRecord"/>.
+    /// </summary>
+    public uint Spacing { get; set; }
 
     /// <summary>
     /// The position of a draggable guide, in view units measured in from the page margins. Guide lines are drawn at this inset.
@@ -59,21 +66,25 @@ public class BodyInfoRecord : OrganizationChartRecord
         offset += 2;
         BoxCount = ReadUInt16(offset);
         offset += 2;
-        Unknown2 = ReadUInt16(offset);
+        CurrencySymbol = ReadNullTerminatedString(offset, out _);
+        if (CurrencySymbol.Length > 4)
+        {
+            CurrencySymbol = CurrencySymbol.Substring(0, 4);
+        }
+
+        offset += 4;
+        DecimalSeparator = (char)ReadByte(offset);
+        ThousandsSeparator = (char)ReadByte(offset + 1);
         offset += 2;
-        Unknown3 = ReadUInt16(offset);
+        CurrencySymbolFirst = ReadUInt16(offset) != 0;
         offset += 2;
-        Unknown4 = ReadUInt16(offset);
-        offset += 2;
-        Unknown5 = ReadUInt16(offset);
-        offset += 2;
-        Unknown6 = ReadUInt16(offset);
+        DecimalDigits = ReadUInt16(offset);
         offset += 2;
         CharacterSet = (TextCharacterSet)ReadUInt16(offset);
         offset += 2;
         BackgroundColor = ReadColor(offset);
 
-        Unknown8 = ReadUInt32(20);
+        Spacing = ReadUInt32(20);
         GuideInset1 = ReadUInt32(24);
         GuideInset2 = ReadUInt32(28);
         ColorHighByte = ReadUInt16(32);

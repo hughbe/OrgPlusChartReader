@@ -12,16 +12,22 @@ public class BoxRecord : OrganizationChartRecord
 
     public BoxType Type { get; set; }
 
-    /// <summary>Box flag 0x04: the flag set by the program's show/hide position command.</summary>
-    public bool Flag0x04 { get; set; }
+    /// <summary>
+    /// Whether the box is hidden (box flag 0x04, set by the Hide Box command). A box of type
+    /// <see cref="BoxType.Hidden"/> is hidden too.
+    /// </summary>
+    public bool IsHidden { get; set; }
 
-    /// <summary>Box flag 0x10.</summary>
-    public bool Flag0x10 { get; set; }
+    /// <summary>Whether the branch below the box is hidden (box flag 0x10, set by the Hide Branch command).</summary>
+    public bool IsBranchHidden { get; set; }
 
-    /// <summary>Box flag 0x01: managed by the show/hide branch command; set on every visible box in the samples.</summary>
+    /// <summary>
+    /// Box flag 0x01. Set on every ordinary box written by Microsoft Organization Chart, which sets it
+    /// ("Change the size of some boxes") on charts from other editions; clear on a silent position.
+    /// </summary>
     public bool Flag0x01 { get; set; }
 
-    /// <summary>Box flag 0x02: managed by the show/hide branch command; set on every visible box in the samples.</summary>
+    /// <summary>Box flag 0x02. See <see cref="Flag0x01"/>.</summary>
     public bool Flag0x02 { get; set; }
 
     /// <summary>
@@ -36,11 +42,11 @@ public class BoxRecord : OrganizationChartRecord
     /// </summary>
     public bool ExcludedFromCalculations { get; set; }
 
-    [TypeConverter(typeof(HexTypeConverter))]
-    public uint Unknown1 { get; set; }
+    /// <summary>Extra horizontal space before the box, in view units. Reset to 0 when the group's style changes.</summary>
+    public uint SpaceBefore { get; set; }
 
-    [TypeConverter(typeof(HexTypeConverter))]
-    public uint Unknown2 { get; set; }
+    /// <summary>A second layout parameter of the group's style for this box, in view units. Reset with <see cref="SpaceBefore"/>.</summary>
+    public uint LayoutParameter2 { get; set; }
 
     public Color FillColor { get; set; }
 
@@ -61,14 +67,14 @@ public class BoxRecord : OrganizationChartRecord
     {
         Size = ReadUInt16(0);
         Type = (BoxType)ReadUInt16(2);
-        Flag0x04 = ReadUInt16(6) != 0;
-        Flag0x10 = ReadUInt16(8) != 0;
+        IsHidden = ReadUInt16(6) != 0 || Type == BoxType.Hidden;
+        IsBranchHidden = ReadUInt16(8) != 0;
         Flag0x01 = ReadUInt16(10) != 0;
         Flag0x02 = ReadUInt16(12) != 0;
         AmountsNotCounted = ReadUInt16(14) != 0;
         ExcludedFromCalculations = ReadUInt16(18) != 0;
-        Unknown1 = ReadUInt32(20);
-        Unknown2 = ReadUInt32(24);
+        SpaceBefore = ReadUInt32(20);
+        LayoutParameter2 = ReadUInt32(24);
         FillColor = ReadColor(28);
         TemplateId = ReadUInt16(32);
         ColorHighByte = ReadUInt16(34);
@@ -80,9 +86,14 @@ public class BoxRecord : OrganizationChartRecord
         CoManager = 0x01,
         Assistant = 0x02,
 
+        /// <summary>A hidden box. Never written by Microsoft Organization Chart, which reads it as a normal box with <see cref="IsHidden"/> set.</summary>
+        Hidden = 0x03,
+
+
         /// <summary>
-        /// A box with box flag 0x80 set. It has no text and no template; its purpose is unknown.
+        /// A silent position: an invisible box with no text and no template. It ends a group of assistants.
+        /// (A co-manager group has one too, but that one is not written to the file.)
         /// </summary>
-        Unknown0x04 = 0x04,
+        SilentPosition = 0x04,
     }
 }

@@ -7,8 +7,11 @@ public class GlobalInfoRecord : OrganizationChartRecord
     [TypeConverter(typeof(HexTypeConverter))]
     public ushort Unknown1 { get; set; }
 
-    [TypeConverter(typeof(HexTypeConverter))]
-    public ushort Unknown2 { get; set; }
+    /// <summary>
+    /// 1 when the program draws a small marker in the corner of every box that has boxes below it.
+    /// Microsoft Organization Chart always hides the markers and writes 0.
+    /// </summary>
+    public ushort ShowBranchMarkers { get; set; }
 
     [TypeConverter(typeof(HexTypeConverter))]
     /// <summary>
@@ -64,7 +67,7 @@ public class GlobalInfoRecord : OrganizationChartRecord
         int offset = 0;
         Unknown1 = ReadUInt16(offset);
         offset += 2;
-        Unknown2 = ReadUInt16(offset);
+        ShowBranchMarkers = ReadUInt16(offset);
         offset += 2;
         ShowPageBreaks = ReadUInt16(offset);
         offset += 2;

@@ -9,11 +9,17 @@ public class GroupLayoutRecord : OrganizationChartRecord
 {
     public ushort Size { get; set; }
 
-    /// <summary>A layout parameter of the group's style, in view units. Reset to 0 when the style changes.</summary>
+    /// <summary>
+    /// In view units. The position of the group's stem when <see cref="StemPosition"/> is 0xFFFF; otherwise
+    /// a value the program stores but its layout code does not use. Reset to 0 when the style changes.
+    /// </summary>
     public uint Measurement1 { get; set; }
 
-    /// <summary>A second layout parameter of the group's style, in view units. Reset to 0 when the style changes.</summary>
-    public uint Measurement2 { get; set; }
+    /// <summary>
+    /// An extra drop, in view units: added to the vertical distance between the parent box and the group,
+    /// on top of the two gaps in <see cref="BoxLayoutRecord"/>. Reset to 0 when the style changes.
+    /// </summary>
+    public uint ExtraDrop { get; set; }
 
     /// <summary>
     /// The number of segments the group's connecting lines are drawn with: the most entries the group's
@@ -32,19 +38,19 @@ public class GroupLayoutRecord : OrganizationChartRecord
     public ushort AssistantStyle { get; set; }
 
     /// <summary>
-    /// A third layout parameter of the group's style. Only set for two styles, where it is 1 when the
-    /// group's previous style was one of three particular (probably horizontal) styles.
+    /// Where the line from the parent box meets the group: 0 centred, 1 at the first box, 2 at the last
+    /// box, 0xFFFF at the position in <see cref="Measurement1"/> (measured from the left of the group).
     /// </summary>
-    public ushort StyleParameter { get; set; }
+    public ushort StemPosition { get; set; }
 
     internal GroupLayoutRecord(OrganizationChartRecordId id, byte[] bytes) : base(id, bytes)
     {
         Size = ReadUInt16(0);
         Measurement1 = ReadUInt32(2);
-        Measurement2 = ReadUInt32(6);
+        ExtraDrop = ReadUInt32(6);
         LineSegmentCount = ReadUInt16(10);
         Style = ReadUInt16(12);
         AssistantStyle = ReadUInt16(14);
-        StyleParameter = ReadUInt16(16);
+        StemPosition = ReadUInt16(16);
     }
 }

@@ -7,8 +7,8 @@ public class ShapeColorRecord : OrganizationChartRecord
 {
     public ushort Size { get; set; }
 
-    [TypeConverter(typeof(HexTypeConverter))]
-    public ushort Unknown1 { get; set; }
+    /// <summary>Always 0. The program ignores it when reading.</summary>
+    public ushort Reserved { get; set; }
 
     public Color Color { get; set; }
 
@@ -24,7 +24,7 @@ public class ShapeColorRecord : OrganizationChartRecord
         int offset = 0;
         Size = ReadUInt16(offset);
         offset += 2;
-        Unknown1 = ReadUInt16(offset);
+        Reserved = ReadUInt16(offset);
         offset += 2;
         Color = ReadColor(offset);
         offset += 4;

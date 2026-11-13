@@ -62,20 +62,24 @@ public class TextStyleRecord : OrganizationChartRecord
         /// <summary>Per run: the text colour.</summary>
         TextColor = 0x03,
 
-        /// <summary>Written with the value 0x29 when the caller asks for it.</summary>
-        Unknown0x04 = 0x04,
+        /// <summary>
+        /// A date code. When the value's low byte is '%', the program appends today's date to the text when
+        /// it reads the file; the next byte ('1' to '5') picks the format. Microsoft Organization Chart only
+        /// writes the value 0x29, which it ignores.
+        /// </summary>
+        DateCode = 0x04,
 
-        /// <summary>Paragraph: text flag 0x1000.</summary>
-        Unknown0x05 = 0x05,
+        /// <summary>Paragraph: whether the field's label is shown with its text (text flag 0x1000).</summary>
+        ShowFieldLabel = 0x05,
 
-        /// <summary>Paragraph: text flag 0x02.</summary>
-        Unknown0x06 = 0x06,
+        /// <summary>Paragraph: whether the text wraps (text flag 0x02).</summary>
+        WrapText = 0x06,
 
         /// <summary>Paragraph: the alignment. See <see cref="TextAlignment"/>.</summary>
         Alignment = 0x07,
 
-        /// <summary>Paragraph: a value that is only written when text flag 0x4000 is set.</summary>
-        Unknown0x08 = 0x08,
+        /// <summary>Paragraph: the name format (1 to 28) of a Name field; 0 for none.</summary>
+        NameFormat = 0x08,
 
         /// <summary>Per run: the font size in points.</summary>
         FontSize = 0x09,
@@ -86,13 +90,13 @@ public class TextStyleRecord : OrganizationChartRecord
         /// <summary>Per run: the second colour of the text shadow.</summary>
         TextShadowSecondaryColor = 0x0B,
 
-        /// <summary>Per run: one of the text shadow's two offsets.</summary>
-        TextShadowOffset1 = 0x0C,
+        /// <summary>Per run: the text shadow's vertical offset (signed, view units).</summary>
+        TextShadowOffsetY = 0x0C,
 
-        /// <summary>Per run: one of the text shadow's two offsets.</summary>
-        TextShadowOffset2 = 0x0D,
+        /// <summary>Per run: the text shadow's horizontal offset (signed, view units).</summary>
+        TextShadowOffsetX = 0x0D,
 
-        /// <summary>Per run: the type of text shadow.</summary>
+        /// <summary>Per run: the type of text shadow, in line shadow codes (0, 1, 2, 7, 8).</summary>
         TextShadowType = 0x0E,
     }
 
@@ -102,6 +106,9 @@ public class TextStyleRecord : OrganizationChartRecord
         Normal = 0x00,
         Bold = 0x01,
         Italic = 0x02,
+
+        /// <summary>A style Microsoft Organization Chart lacks (probably underline); it clears it in charts from other editions.</summary>
+        Unsupported0x04 = 0x04,
     }
 
     /// <summary>

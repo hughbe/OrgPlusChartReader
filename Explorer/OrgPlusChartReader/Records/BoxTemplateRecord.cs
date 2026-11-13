@@ -62,8 +62,8 @@ public class BoxTemplateRecord : OrganizationChartRecord
             switch (opcode)
             {
                 case Opcode.Field:
-                case Opcode.Setting2:
-                case Opcode.Setting3:
+                case Opcode.VerticalLine:
+                case Opcode.HorizontalLine:
                     instructions.Add(new Instruction(opcode, ReadByte(offset)));
                     offset++;
                     break;
@@ -72,7 +72,7 @@ public class BoxTemplateRecord : OrganizationChartRecord
                 case Opcode.EndOfLine:
                 case Opcode.Ignored7:
                 case Opcode.Ignored8:
-                case Opcode.FieldFlag:
+                case Opcode.HideField:
                     instructions.Add(new Instruction(opcode, 0));
                     break;
                 default:
@@ -93,11 +93,17 @@ public class BoxTemplateRecord : OrganizationChartRecord
         /// <summary>Place a field. The operand is the field index, or 0xFF for none.</summary>
         Field = 0x01,
 
-        /// <summary>A two-valued setting for the field: operand 1 or 0. It also changes the field entry's kind.</summary>
-        Setting2 = 0x02,
+        /// <summary>
+        /// A vertical line inside the box, to the right of the field. Operand 1 keeps it inside the box's
+        /// inner margins; operand 0 runs it the full height to the border.
+        /// </summary>
+        VerticalLine = 0x02,
 
-        /// <summary>A second two-valued setting for the field: operand 1 or 0.</summary>
-        Setting3 = 0x03,
+        /// <summary>
+        /// A horizontal line inside the box, under the field's row. Operand 1 keeps it inside the inner
+        /// margins; operand 0 runs it the full width to the border.
+        /// </summary>
+        HorizontalLine = 0x03,
 
         /// <summary>Marks the line selected by one of the label setup's line indexes.</summary>
         MarkerA = 0x04,
@@ -114,8 +120,8 @@ public class BoxTemplateRecord : OrganizationChartRecord
         /// <summary>Accepted and ignored by the program.</summary>
         Ignored8 = 0x08,
 
-        /// <summary>The field has flag 0x01 set.</summary>
-        FieldFlag = 0x09,
+        /// <summary>The field just placed is hidden: it stays in the template but is not displayed.</summary>
+        HideField = 0x09,
     }
 
     public readonly struct Instruction
@@ -132,7 +138,7 @@ public class BoxTemplateRecord : OrganizationChartRecord
 
         public override string ToString() => Opcode switch
         {
-            Opcode.Field or Opcode.Setting2 or Opcode.Setting3 => $"{Opcode}({Operand})",
+            Opcode.Field or Opcode.VerticalLine or Opcode.HorizontalLine => $"{Opcode}({Operand})",
             _ => Opcode.ToString(),
         };
     }

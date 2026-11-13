@@ -23,32 +23,35 @@ public class GroupRecord : OrganizationChartRecord
     public ushort AssistantPartGroupId { get; set; }
 
     /// <summary>
-    /// The index of the parent group, or -1 for the root group.
+    /// The <see cref="GroupId"/> of the parent group, or -1 for the root group.
     /// </summary>
-    public short ParentGroupIndex { get; set; }
+    public short ParentGroupId { get; set; }
 
     /// <summary>
-    /// The one-based index of the parent box (see <see cref="BoxIndexRecord"/>), or 0 for the root group.
+    /// The number of the parent box (see <see cref="BoxIndexRecord"/>), or 0 for the root group. For a group
+    /// below co-managers this is the number of the co-manager group's first box.
     /// </summary>
-    public ushort ParentBoxIndex { get; set; }
+    public ushort ParentBoxNumber { get; set; }
 
     /// <summary>
-    /// The number of boxes in the group.
+    /// The number of boxes in the group. A group of assistants counts the silent position that ends it;
+    /// a co-manager group does not.
     /// </summary>
     public ushort Count { get; set; }
 
     /// <summary>
-    /// How many of the group's <see cref="Count"/> boxes are assistants.
+    /// How many of the group's <see cref="Count"/> boxes are assistants. Microsoft Organization Chart writes
+    /// either 0 or <see cref="Count"/>.
     /// </summary>
     public ushort AssistantCount { get; set; }
 
     /// <summary>
-    /// Group flag 0x20.
+    /// Group flag 0x20. When set, a silent position is allowed anywhere in the group.
     /// </summary>
     public bool Flag0x20 { get; set; }
 
     /// <summary>
-    /// Group flag 0x40.
+    /// Group flag 0x40. The program ignores it when reading.
     /// </summary>
     public bool Flag0x40 { get; set; }
 
@@ -62,8 +65,8 @@ public class GroupRecord : OrganizationChartRecord
         Size = ReadUInt16(0);
         GroupId = ReadUInt16(2);
         AssistantPartGroupId = ReadUInt16(4);
-        ParentGroupIndex = ReadInt16(6);
-        ParentBoxIndex = ReadUInt16(8);
+        ParentGroupId = ReadInt16(6);
+        ParentBoxNumber = ReadUInt16(8);
         Count = ReadUInt16(10);
         AssistantCount = ReadUInt16(12);
         Flag0x20 = ReadByte(14) != 0;

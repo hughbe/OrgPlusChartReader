@@ -11,7 +11,8 @@ public class Unknown0x0002Record : OrganizationChartRecord
     public ushort Size { get; set; }
 
     /// <summary>
-    /// 4 in charts and 2 in the style file sample. The 1995 ORGCHART.EXE save routine always writes 4.
+    /// Which program wrote the file. Microsoft Organization Chart always writes 4. Any other value (the
+    /// style file sample has 2) makes it treat the chart as one from another Org Plus edition and convert it.
     /// </summary>
     public DocumentKind Kind { get; set; }
 
