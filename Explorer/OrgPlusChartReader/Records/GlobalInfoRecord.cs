@@ -7,11 +7,17 @@ public class GlobalInfoRecord : OrganizationChartRecord
     [TypeConverter(typeof(HexTypeConverter))]
     public ushort Unknown1 { get; set; }
 
-    [TypeConverter(typeof(HexTypeConverter))]
-    public ushort Unknown2 { get; set; }
+    /// <summary>
+    /// 1 when the program draws a small marker in the corner of every box that has boxes below it.
+    /// Microsoft Organization Chart always hides the markers and writes 0.
+    /// </summary>
+    public ushort ShowBranchMarkers { get; set; }
 
     [TypeConverter(typeof(HexTypeConverter))]
-    public ushort Unknown3 { get; set; }
+    /// <summary>
+    /// 1 when page-break and guide lines are drawn on screen (the program stores the inverse of a hide flag).
+    /// </summary>
+    public ushort ShowPageBreaks { get; set; }
 
     [TypeConverter(typeof(HexTypeConverter))]
     public ushort Unknown4 { get; set; }
@@ -23,21 +29,47 @@ public class GlobalInfoRecord : OrganizationChartRecord
     public ushort Unknown6 { get; set; }
 
     [TypeConverter(typeof(HexTypeConverter))]
-    public ushort Unknown7 { get; set; }
+    /// <summary>
+    /// The zoom in tenths of a percent: 0 is Actual Size, a positive value a fixed zoom, and a negative value
+    /// Size to Window at the absolute value.
+    /// </summary>
+    public short Magnification { get; set; }
 
     public GlobalGroupsStyle GroupsStyle { get; set; }
 
     [TypeConverter(typeof(HexTypeConverter))]
-    public ushort Unknown8 { get; set; }
+    public ushort GroupStyleParameter { get; set; }
+
+    /// <summary>
+    /// The default style for assistant groups, using the same codes as <see cref="GroupsStyle"/> (25 in the samples).
+    /// </summary>
+    public ushort DefaultAssistantStyle { get; set; }
+
+    /// <summary>The group id of the current box, or -1 when there is none.</summary>
+    public short CurrentBoxGroupId { get; set; }
+
+    /// <summary>The zero-based position of the current box within its group, or -1.</summary>
+    public short CurrentBoxPosition { get; set; }
+
+    /// <summary>
+    /// 1 when a box is selected (its boxes section contains a <see cref="SelectedRecord"/>), otherwise 0.
+    /// </summary>
+    public ushort BoxSelected { get; set; }
+
+    /// <summary>The chart window's horizontal scroll position.</summary>
+    public ushort HorizontalScrollPosition { get; set; }
+
+    /// <summary>The chart window's vertical scroll position.</summary>
+    public ushort VerticalScrollPosition { get; set; }
 
     internal GlobalInfoRecord(OrganizationChartRecordId id, byte[] bytes) : base(id, bytes)
     {
         int offset = 0;
         Unknown1 = ReadUInt16(offset);
         offset += 2;
-        Unknown2 = ReadUInt16(offset);
+        ShowBranchMarkers = ReadUInt16(offset);
         offset += 2;
-        Unknown3 = ReadUInt16(offset);
+        ShowPageBreaks = ReadUInt16(offset);
         offset += 2;
         Unknown4 = ReadUInt16(offset);
         offset += 2;
@@ -45,11 +77,27 @@ public class GlobalInfoRecord : OrganizationChartRecord
         offset += 2;
         Unknown6 = ReadUInt16(offset);
         offset += 2;
-        Unknown7 = ReadUInt16(offset);
+        Magnification = ReadInt16(offset);
         offset += 2;
         GroupsStyle = (GlobalGroupsStyle)ReadUInt16(offset);
         offset += 2;
-        Unknown8 = ReadUInt16(offset);
+        GroupStyleParameter = ReadUInt16(offset);
+        offset += 2;
+
+        DefaultAssistantStyle = ReadUInt16(offset);
+        offset += 2;
+
+        CurrentBoxGroupId = ReadInt16(offset);
+        offset += 2;
+
+        CurrentBoxPosition = ReadInt16(offset);
+        offset += 2;
+
+        BoxSelected = ReadUInt16(offset);
+
+        // Bytes 26-29 are never written by the program and contain leftover data.
+        HorizontalScrollPosition = ReadUInt16(30);
+        VerticalScrollPosition = ReadUInt16(32);
     }
 
     public enum GlobalGroupsStyle: ushort
@@ -59,6 +107,7 @@ public class GlobalInfoRecord : OrganizationChartRecord
         Style3 = 0x03,
         Style4 = 0x04,
         Style5 = 0x05,
+        Style6 = 0x06,
         CoManager = 0x22,
     }
 }

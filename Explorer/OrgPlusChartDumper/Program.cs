@@ -24,6 +24,11 @@ try
         Console.WriteLine($"Slack bytes before footer: {chart.SlackBytes.Length}");
     }
 
+    if (!chart.IsChecksumValid)
+    {
+        Console.WriteLine("Warning: the footer checksums do not match; the file was probably modified after it was saved.");
+    }
+
     return 0;
 }
 catch (Exception e) when (e is InvalidDataException or IOException or UnauthorizedAccessException)
@@ -65,7 +70,9 @@ static string Describe(OrganizationChartRecord record)
         var converter = property.GetCustomAttribute<TypeConverterAttribute>();
         string text = converter != null && value != null
             ? TypeDescriptor.GetProperties(record)[property.Name]!.Converter.ConvertToString(value)!
-            : value?.ToString() ?? "null";
+            : value is System.Collections.IEnumerable items and not string
+                ? "[" + string.Join(", ", items.Cast<object>()) + "]"
+                : value?.ToString() ?? "null";
 
         if (builder.Length != 0)
         {

@@ -7,23 +7,27 @@ public class ShapeColorRecord : OrganizationChartRecord
 {
     public ushort Size { get; set; }
 
-    [TypeConverter(typeof(HexTypeConverter))]
-    public ushort Unknown1 { get; set; }
+    /// <summary>Always 0. The program ignores it when reading.</summary>
+    public ushort Reserved { get; set; }
 
     public Color Color { get; set; }
 
+    /// <summary>
+    /// The high byte of the program's internal colour value. 0xFF means the default colour,
+    /// in which case the colour's fourth byte is also 1.
+    /// </summary>
     [TypeConverter(typeof(HexTypeConverter))]
-    public ushort Unknown2 { get; set; }
+    public ushort ColorHighByte { get; set; }
 
     internal ShapeColorRecord(OrganizationChartRecordId id, byte[] bytes) : base(id, bytes)
     {
         int offset = 0;
         Size = ReadUInt16(offset);
         offset += 2;
-        Unknown1 = ReadUInt16(offset);
+        Reserved = ReadUInt16(offset);
         offset += 2;
         Color = ReadColor(offset);
         offset += 4;
-        Unknown2 = ReadUInt16(offset);
+        ColorHighByte = ReadUInt16(offset);
     }
 }

@@ -2,38 +2,29 @@ using System.ComponentModel;
 
 namespace OrgPlusChartReader;
 
+/// <summary>
+/// A version record (0x0003). The program always writes version 1001 and the date 26 December 1992.
+/// </summary>
 public class Unknown0x0003Record : OrganizationChartRecord
 {
     [TypeConverter(typeof(HexTypeConverter))]
     public ushort Size { get; set; }
 
-    [TypeConverter(typeof(HexTypeConverter))]
-    public ushort Unknown1 { get; set; }
+    public ushort Version { get; set; }
 
-    [TypeConverter(typeof(HexTypeConverter))]
-    public ushort Unknown2 { get; set; }
+    public byte Day { get; set; }
 
-    [TypeConverter(typeof(HexTypeConverter))]
-    public ushort Unknown3 { get; set; }
+    public byte Month { get; set; }
+
+    /// <summary>The year, as two digits (92).</summary>
+    public ushort Year { get; set; }
 
     internal Unknown0x0003Record(OrganizationChartRecordId id, byte[] bytes) : base(id, bytes)
     {
-        int offset = 0;
-
-        // Size (2 bytes).
-        Size = ReadUInt16(offset);
-        offset += 2;
-
-        // Unknown1 (2 bytes).
-        Unknown1 = ReadUInt16(offset);
-        offset += 2;
-
-        // Unknown2 (2 bytes).
-        Unknown2 = ReadUInt16(offset);
-        offset += 2;
-
-        // Unknown3 (2 bytes).
-        Unknown3 = ReadUInt16(offset);
-        offset += 2;
+        Size = ReadUInt16(0);
+        Version = ReadUInt16(2);
+        Day = ReadByte(4);
+        Month = ReadByte(5);
+        Year = ReadUInt16(6);
     }
 }

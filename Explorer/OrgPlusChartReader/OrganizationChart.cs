@@ -27,6 +27,12 @@ public class OrganizationChart
     public byte[] SlackBytes { get; }
 
     /// <summary>
+    /// Whether both checksums in the footer match the contents of the file.
+    /// A mismatch does not stop the file being read; it usually means the file was modified after it was saved.
+    /// </summary>
+    public bool IsChecksumValid { get; }
+
+    /// <summary>
     /// Reads a chart from a stream, from its current position to its end.
     /// The stream is not closed and does not need to be seekable.
     /// </summary>
@@ -87,16 +93,23 @@ public class OrganizationChart
             }
             else
             {
-                int length = ReadUInt16(data, ref position);
+                int recordOffset = position - 2;
+                long length = ReadUInt16(data, ref position);
+                if (length == 0xFFFF)
+                {
+                    // A length of 0xFFFF is an escape: the real length follows as a 32-bit value.
+                    length = ReadUInt16(data, ref position) | ((long)ReadUInt16(data, ref position) << 16);
+                }
+
                 if (length > data.Length - position)
                 {
                     throw new InvalidDataException(
-                        $"Record 0x{rawId:X4} at offset {position - 4} declares {length} byte(s) but only {data.Length - position} remain.");
+                        $"Record 0x{rawId:X4} at offset {recordOffset} declares {length} byte(s) but only {data.Length - position} remain.");
                 }
 
-                var recordData = new byte[length];
-                Buffer.BlockCopy(data, position, recordData, 0, length);
-                position += length;
+                var recordData = new byte[(int)length];
+                Buffer.BlockCopy(data, position, recordData, 0, recordData.Length);
+                position += recordData.Length;
 
                 AddRecord(records, substreamStack, OrganizationChartRecord.Create(id, recordData));
             }
@@ -133,6 +146,10 @@ public class OrganizationChart
             throw new InvalidDataException(
                 $"The footer records a file size of {Footer.FileSize} but the footer starts at offset {footerOffset}.");
         }
+
+        // The checksums are not enforced: files that were edited by hand after saving are otherwise readable.
+        var (byteSum, rotateXorChecksum) = FooterRecord.ComputeChecksums(data, footerOffset);
+        IsChecksumValid = byteSum == Footer.ByteSum && rotateXorChecksum == Footer.RotateXorChecksum;
 
         SlackBytes = new byte[footerOffset - position];
         Buffer.BlockCopy(data, position, SlackBytes, 0, SlackBytes.Length);

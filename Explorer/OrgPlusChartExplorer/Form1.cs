@@ -208,8 +208,12 @@ public partial class Form1 : Form
                 return $"Font Name (0x{id:X4})";
             case OrganizationChartRecordId.TitlePartIndex:
                 return $"Title Part Index (0x{id:X4})";
-            case OrganizationChartRecordId.Level:
-                return $"Level (0x{id:X4})";
+            case OrganizationChartRecordId.Group:
+                return $"Group (0x{id:X4})";
+            case OrganizationChartRecordId.Box:
+                return $"Box (0x{id:X4})";
+            case OrganizationChartRecordId.BoxTemplate:
+                return $"Box Template (0x{id:X4})";
             case OrganizationChartRecordId.BoxIndex:
                 return $"Box Index (0x{id:X4})";
             case OrganizationChartRecordId.Border:
@@ -245,10 +249,10 @@ public partial class Form1 : Form
                 return $"Canvas Section (0x{id:X4})";
             case OrganizationChartRecordId.GlobalInfoSection:
                 return $"Global Info Section (0x{id:X4})";
-            case OrganizationChartRecordId.LevelsSection:
-                return $"Levels Section (0x{id:X4})";
-            case OrganizationChartRecordId.LevelSection:
-                return $"Level Section (0x{id:X4})";
+            case OrganizationChartRecordId.GroupsSection:
+                return $"Groups Section (0x{id:X4})";
+            case OrganizationChartRecordId.BoxesSection:
+                return $"Boxes Section (0x{id:X4})";
            case OrganizationChartRecordId.BoxTextPartsSection:
                 return $"Box Text Parts Section (0x{id:X4})";
             case OrganizationChartRecordId.TitleSection:
